@@ -1,0 +1,63 @@
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+#data files
+data/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE and editor settings
+.vscode/
+.idea/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Test and coverage outputs
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Machine learning checkpoints and model weights
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Generated experiment outputs
+outputs/
+runs/
+wandb/
+
+# Temporary files
+*.tmp
+*.bak
+
