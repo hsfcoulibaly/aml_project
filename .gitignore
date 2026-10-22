@@ -53,7 +53,7 @@ checkpoints/
 *.onnx
 
 # Generated experiment outputs
-outputs/
+
 runs/
 wandb/
 
