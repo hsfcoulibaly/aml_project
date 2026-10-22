@@ -1,1 +1,144 @@
-eda will be done here
+# Solar Filament Segmentation Project
+## Progress Report: From Dataset Exploration to the First U-Net Baseline
+
+### 1. Executive Summary
+
+Our project aims to automatically detect solar filaments in grayscale solar images using computer vision and deep learning.
+
+So far, we have completed dataset exploration, annotation analysis, a traditional image-processing baseline, data preparation, and our first U-Net segmentation model. We have also evaluated the model across all 217 validation annotation records and inspected its predictions visually.
+
+Our first U-Net achieved a best reported validation Dice score of 0.6563 during training. In the full validation evaluation, it achieved a mean Dice of 0.6310 and a mean IoU of 0.4709 at a probability threshold of 0.5.
+
+The initial baseline is complete. We are now ready to investigate improvements and work toward the final competition submission.
+
+### 2. What We Have Done
+
+#### Phase 1: Understanding the dataset
+
+We began by exploring the dataset to understand the images, annotation formats, and relationships between images and annotations.
+
+The dataset contains:
+
+- 707 physical training images.
+- 1,154 annotation records.
+- 8,199 polygon annotation objects.
+- Original images with a resolution of 2048 × 2048 pixels.
+
+An important discovery was that a single physical image can have multiple annotation records. These records may describe different labeled filament regions.
+
+We therefore grouped records by physical image when splitting the data into training and validation sets. This prevents the same physical image from appearing in both sets.
+
+The resulting split contains 566 training physical images and 141 validation physical images.
+
+#### Phase 2: Visualizing and validating annotations
+
+We created scripts to inspect the annotations and visualize the corresponding filament masks.
+
+This allowed us to understand the polygon representation, compare multiple annotation records for the same image, and check whether the annotations align with the visible solar structures.
+
+These steps were necessary before training because a segmentation model learns directly from the supplied masks. Incorrect masks would lead to incorrect training signals.
+
+#### Phase 3: Building a traditional baseline
+
+Before using deep learning, we tested image-processing techniques based on intensity thresholding and local contrast.
+
+The approach included estimating the solar disk, identifying darker structures, applying morphological operations, and filtering connected components.
+
+Initial thresholding methods performed poorly. A local-contrast approach improved the results on the sampled images, but its performance remained sensitive to parameter choices.
+
+This experiment gave us a traditional baseline and motivated the move toward a learned segmentation model.
+
+#### Phase 4: Preparing the data for deep learning
+
+We developed a preparation pipeline that converts polygon annotations into binary masks.
+
+Each mask labels filament pixels as 1 and background pixels as 0. The images and masks are resized to 512 × 512 pixels to make model training more manageable.
+
+During preparation, we discovered and corrected an annotation-matching bug. The annotations were stored in a separate top-level list rather than inside each image record. We corrected the code to match annotations to images using `image_id`.
+
+The successful preparation run produced 937 training records and 217 validation records, with no skipped records and no empty masks.
+
+We then verified that the prepared images and masks load correctly into PyTorch batches.
+
+#### Phase 5: Implementing and training U-Net
+
+We implemented U-Net, a convolutional neural network designed for pixel-level segmentation.
+
+U-Net has an encoder that learns image features, a decoder that restores spatial detail, and skip connections that help preserve fine spatial information. These characteristics make it a reasonable starting point for detecting curved and narrow solar filaments.
+
+Our model contains approximately 1.94 million parameters and was trained using PyTorch on Apple's MPS acceleration backend.
+
+The initial configuration used 512 × 512 inputs, a batch size of 4, Adam optimization, and a combined binary cross-entropy and Dice loss.
+
+Training ran for 10 epochs. The best checkpoint was saved at epoch 7, with a reported validation Dice score of 0.6563.
+
+Validation performance declined in the final epochs even though training loss continued to improve, suggesting possible overfitting.
+
+#### Phase 6: Visualizing predictions
+
+We generated visual comparisons showing the original solar image, ground-truth mask, predicted mask, and an overlay of the prediction against the ground truth.
+
+The model successfully identifies many major filament structures. However, it also misses some thin regions and predicts extra fragments in certain images.
+
+Eight sampled validation records had a mean Dice score of 0.6465. This was a preliminary visual-analysis sample, not the final full-validation metric.
+
+#### Phase 7: Evaluating the complete validation set
+
+We evaluated the saved U-Net checkpoint across all 217 validation annotation records at probability thresholds of 0.3, 0.4, 0.5, 0.6, and 0.7.
+
+At threshold 0.5, the results were:
+
+- Mean Dice: 0.6310.
+- Median Dice: 0.6591.
+- Mean IoU: 0.4709.
+
+The best mean Dice among the tested thresholds was 0.6322 at threshold 0.7, with a mean IoU of 0.4725. This is a small improvement over threshold 0.5, so further threshold tuning is not our highest priority.
+
+### 3. What These Results Mean
+
+The first U-Net is a working baseline, not a final solution.
+
+It has learned meaningful filament patterns and can segment many of the larger structures. However, thin filaments, false-positive fragments, and differences among annotation records remain challenges.
+
+Another important issue is foreground-background imbalance. Filament pixels account for only a small fraction of the pixels in the images. Resizing from 2048 × 2048 to 512 × 512 may also remove fine structures.
+
+The results provide a reference against which we can evaluate future improvements.
+
+### 4. Current Deliverables
+
+The following components have been implemented:
+
+- Dataset inspection and annotation analysis scripts.
+- Annotation visualization tools.
+- Traditional threshold-based segmentation baseline.
+- Grouped train-validation split.
+- Polygon-to-mask preparation pipeline.
+- PyTorch dataset loader and verification script.
+- U-Net training implementation.
+- Saved best U-Net checkpoint.
+- Validation prediction visualization.
+- Full validation threshold evaluation and CSV results.
+- Updated project documentation.
+
+### 5. Next Steps
+
+The next phase will focus on improving segmentation and moving toward the competition submission.
+
+1. Add synchronized image-mask data augmentation, including flips and 90-degree rotations.
+2. Introduce early stopping and compare the augmented model against the original baseline.
+3. Investigate missed filaments, false positives, and the effects of low resolution.
+4. Consider higher-resolution or patch-based training.
+5. Compare all experiments using the same validation split and evaluation method.
+6. Develop instance-level filament extraction and prepare the competition submission format.
+
+The current model produces a binary filament mask. The final competition pipeline requires individual filament instances, so additional post-processing or instance-level modeling will be necessary.
+
+### 6. Current Milestone
+
+**Completed: First U-Net semantic segmentation baseline.**
+
+We have progressed from understanding the dataset to building, training, visualizing, and evaluating a working deep-learning model.
+
+The next milestone is to improve generalization and segmentation quality, followed by the development of the instance-level competition pipeline.
+
+This report records our current baseline and gives the team a shared starting point for the next phase of development.
