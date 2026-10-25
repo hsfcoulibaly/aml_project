@@ -1,8 +1,8 @@
 # Shared environment for every job. Edit the CHANGE_ME lines once for your cluster.
 
 # 1. Load Python / CUDA modules if your cluster uses them (see `module avail python cuda`):
-# module load CHANGE_ME_PYTHON_MODULE
-# module load CHANGE_ME_CUDA_MODULE
+module load python/3.12.7   # the .venv was built from this module
+# (no CUDA module needed: the PyTorch wheel bundles CUDA 12.1)
 
 # 2. Activate the environment created during setup (venv or conda, whichever you used)
 source .venv/bin/activate

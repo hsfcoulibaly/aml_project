@@ -8,8 +8,9 @@
 #   MODE=largest sbatch slurm/train.sbatch             # label ablation
 #
 #SBATCH --job-name=fseg-train
-#SBATCH --partition=CHANGE_ME_GPU_PARTITION
-#SBATCH --gres=gpu:1
+#SBATCH --partition=qTRDGPUH
+#SBATCH --account=trends53c17
+#SBATCH --gres=gpu:A100:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=12:00:00

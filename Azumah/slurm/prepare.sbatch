@@ -1,7 +1,8 @@
 #!/bin/bash
 # Stage 0 (CPU only): folds, consensus targets, preprocessing, YOLO export. ~20-40 min.
 #SBATCH --job-name=fseg-prepare
-#SBATCH --partition=CHANGE_ME_CPU_PARTITION
+#SBATCH --partition=qTRD
+#SBATCH --account=trends53c17
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00

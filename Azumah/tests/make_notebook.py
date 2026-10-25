@@ -18,8 +18,9 @@ attached = next(Path('/kaggle/input').rglob('fseg/__init__.py'), None)
 if attached:
     subprocess.run(['cp', '-r', str(attached.parents[1]), str(CODE)], check=True)
 elif not CODE.exists():
-    REPO = 'https://github.com/Ewenam/filament-seg.git'   # <- change to your team's repo
-    subprocess.run(['git', 'clone', REPO, str(CODE)], check=True)
+    REPO = 'https://github.com/hsfcoulibaly/aml_project.git'   # team repo; this code lives in Azumah/
+    subprocess.run(['git', 'clone', '--depth', '1', REPO, '/tmp/aml_project'], check=True)
+    subprocess.run(['cp', '-r', '/tmp/aml_project/Azumah', str(CODE)], check=True)
 
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'ultralytics', 'pycocotools'], check=True)
 os.chdir(CODE)
