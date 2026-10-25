@@ -23,6 +23,7 @@ elif not CODE.exists():
     subprocess.run(['cp', '-r', '/tmp/aml_project/Azumah', str(CODE)], check=True)
 
 subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'ultralytics', 'pycocotools'], check=True)
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"  # less fragmentation on 16 GB T4s
 os.chdir(CODE)
 sys.path.insert(0, str(CODE))
 !nvidia-smi --query-gpu=name,memory.total --format=csv"""),
@@ -37,8 +38,8 @@ fig, ax = plt.subplots(1, 3, figsize=(18, 6))
 for i, t in enumerate(['raw', 'limb-flattened', 'CLAHE']):
     ax[i].imshow(img[:, :, i], cmap='gray'); ax[i].set_title(t); ax[i].axis('off')
 plt.show()"""),
-    ("code", """# 3. Train the baseline proposer on fold 0 (~1.5-2.5 h on 2xT4). Lower --batch to 4 if you hit OOM.
-!python scripts/train_yolo.py --mode consensus --fold 0 --model yolo11l-seg.pt --imgsz 1280 --epochs 60 --batch 8"""),
+    ("code", """# 3. Train the baseline proposer on fold 0 (~2-3 h on 2xT4). batch 8 runs out of memory on 16 GB T4s at 1280 px.
+!python scripts/train_yolo.py --mode consensus --fold 0 --model yolo11l-seg.pt --imgsz 1280 --epochs 60 --batch 4"""),
     ("code", """# 4. Out-of-fold PQ on fold 0: sweeps confidence and min-area thresholds for PQ, saves pq_config.json
 !python scripts/predict_yolo.py oof --weights /kaggle/working/fseg/runs/consensus_f0/weights/best.pt --fold 0 --imgsz 1280"""),
     ("md", """### Ablations (run as separate versions, compare the OOF PQ line)
@@ -46,10 +47,10 @@ plt.show()"""),
 * dilation (your teammate's idea, zero-init branch in the neck): `--dilated p4,p5` or `--dilated p3,p4,p5`
 * TTA: `--tta id` vs the default four flips"""),
     ("code", """# 5. (optional) dilation ablation on the same fold
-# !python scripts/train_yolo.py --mode consensus --fold 0 --dilated p4,p5 --epochs 60 --batch 8
+# !python scripts/train_yolo.py --mode consensus --fold 0 --dilated p4,p5 --epochs 60 --batch 4
 # !python scripts/predict_yolo.py oof --weights /kaggle/working/fseg/runs/consensus_f0_dilp4p5/weights/best.pt --fold 0"""),
     ("code", """# 6. Final model on all training images, then predict the test set with the fold-0 calibrated thresholds
-!python scripts/train_yolo.py --mode consensus --fold full --model yolo11l-seg.pt --imgsz 1280 --epochs 60 --batch 8
+!python scripts/train_yolo.py --mode consensus --fold full --model yolo11l-seg.pt --imgsz 1280 --epochs 60 --batch 4
 !python scripts/predict_yolo.py test --weights /kaggle/working/fseg/runs/consensus_ffull/weights/best.pt \\
     --config /kaggle/working/fseg/runs/consensus_f0/pq_config.json --imgsz 1280"""),
     ("code", """import pandas as pd
