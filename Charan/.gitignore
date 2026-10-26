@@ -1,0 +1,2 @@
+# Local-only LLM agent memory bank (never push)
+/agent_context/
