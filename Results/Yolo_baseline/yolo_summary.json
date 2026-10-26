@@ -1,0 +1,46 @@
+{
+  "model": "yolo11s-seg.pt",
+  "imgsz": 1024,
+  "epochs_requested": 30,
+  "batch": 8,
+  "seed": 42,
+  "n_val_records": 217,
+  "dice_iou_by_conf": [
+    {
+      "conf": 0.1,
+      "mean_dice": 0.6225,
+      "median_dice": 0.6506,
+      "mean_iou": 0.4633,
+      "mean_instances": 15.2396
+    },
+    {
+      "conf": 0.25,
+      "mean_dice": 0.65,
+      "median_dice": 0.6697,
+      "mean_iou": 0.493,
+      "mean_instances": 8.2028
+    },
+    {
+      "conf": 0.4,
+      "mean_dice": 0.5984,
+      "median_dice": 0.6363,
+      "mean_iou": 0.449,
+      "mean_instances": 5.1659
+    },
+    {
+      "conf": 0.5,
+      "mean_dice": 0.5293,
+      "median_dice": 0.5833,
+      "mean_iou": 0.388,
+      "mean_instances": 3.7143
+    }
+  ],
+  "best_conf_by_mean_dice": 0.25,
+  "note": "best_conf is chosen on the validation set - report conf=0.25 (YOLO default) as the headline number",
+  "box_mAP50": 0.669696971053243,
+  "box_mAP50_95": 0.39239339545727414,
+  "mask_mAP50": 0.6589295495410865,
+  "mask_mAP50_95": 0.23369948431928034,
+  "mask_precision": 0.6262633302681258,
+  "mask_recall": 0.6384180790960452
+}
