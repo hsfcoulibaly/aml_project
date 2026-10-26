@@ -28,7 +28,7 @@ Each member owns a folder and builds their own model; models are compared agains
 
 | Folder | Owner | Contents |
 |---|---|---|
-| `Varshi/` | Amirthavarshani | Data description, cleaning and EDA notebook (inter-annotator IoU 0.445) |
+| `Varshi/` | Amirthavarshani Mahadevan | Data description, cleaning and EDA notebook (inter-annotator IoU 0.445) |
 | `Sheikh/` | Sheikh Tijan Hydara | EDA scripts, classical threshold baseline, 512 px U-Net, PQ evaluation and the first submission file (`Sheikh/src/`, `Sheikh/outputs/`) |
 | `Hassan/` | Foungnigue Souleymane Hassan Coulibaly | YOLO11s-seg baseline notebook (Colab) and run report |
 | `Azumah/` | Richmond Azumah | `fseg` package: YOLO -> U-Net cascade with a PQ evaluator (in progress) |
