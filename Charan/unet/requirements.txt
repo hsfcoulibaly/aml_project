@@ -1,0 +1,12 @@
+# Versions used for the CPU smoke tests (2026-10-26). On Kaggle, keep the preinstalled torch/torchvision
+# (CUDA build) and install only segmentation-models-pytorch and pycocotools.
+torch==2.14.1
+torchvision==0.29.1
+segmentation-models-pytorch==0.5.0
+timm==1.0.30
+huggingface-hub==2.3.0
+pycocotools==2.0.11
+opencv-python-headless==5.0.0.93
+numpy==2.5.2
+pandas==3.1.0
+tqdm==4.70.1
