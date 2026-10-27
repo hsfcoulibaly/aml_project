@@ -23,6 +23,16 @@ ImageNet-pretrained ResNet34 encoder, and a tuned post-processing step.
 Only segmentation polygons are used for training: the rules forbid other ground-truth metadata
 (spines, boxes, category labels).
 
+## Time-blocked split (branch `charan/newdatasplit`)
+
+`splits/week_split.json` (from `scripts/make_split.py`) assigns whole 7-day blocks to train or val, stratified
+by year: 546 train / 161 val images. Filaments persist for days and the Sun rotates ~13 deg/day, so the
+by-image split above leaks near-duplicates (20 val images share a day with a training image, 45 more are one
+day away). The blocked split has no same-day pairs and a median gap of 5 days to the nearest training day.
+It is not chronological on purpose: the test set is a random sample of the same 2011-2022 span, and the year
+stratification keeps every phase of the solar cycle on both sides. Use it with `prepare.py --split splits/week_split.json`.
+Val PQ on this split is not comparable with numbers on Sheikh's split; compare on the leaderboard.
+
 ## Run on Kaggle (GPU T4 x2, Internet on)
 
 Open `notebooks/kaggle_train_unet.ipynb` on Kaggle, add the competition data, and **Save Version -> Save & Run All**
