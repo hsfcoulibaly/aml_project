@@ -1,0 +1,21 @@
+{
+  "header": "2D MeshNet, gridding-free dilation schedule (RF = 255 px), adapted for full-disk H-alpha at 1024 px",
+  "source": "https://github.com/neuroneural/catalyst_example/blob/refiner-implementations/modelAE_hdc_deep.json (3D original, 5 channels, 256^3 volumes)",
+  "comment": "Same coprime ramp 1,3,5,7,13,19,31,19,13,7,5,3,1 (13 conv layers + final 1x1). RF = 1 + 2*127 = 255 px, which at 1024 px covers the 95th-percentile filament spine length (~193 px). Width is set by --channels in train.py (the 3D original's 5-6 channels were a memory limit that 2D does not have). GroupNorm (one group per channel, affine) + GELU in every block, no skips.",
+  "layers": [
+    { "kernel_size": 3, "dilation": 1 },
+    { "kernel_size": 3, "dilation": 3 },
+    { "kernel_size": 3, "dilation": 5 },
+    { "kernel_size": 3, "dilation": 7 },
+    { "kernel_size": 3, "dilation": 13 },
+    { "kernel_size": 3, "dilation": 19 },
+    { "kernel_size": 3, "dilation": 31 },
+    { "kernel_size": 3, "dilation": 19 },
+    { "kernel_size": 3, "dilation": 13 },
+    { "kernel_size": 3, "dilation": 7 },
+    { "kernel_size": 3, "dilation": 5 },
+    { "kernel_size": 3, "dilation": 3 },
+    { "kernel_size": 3, "dilation": 1 },
+    { "kernel_size": 1, "dilation": 1 }
+  ]
+}

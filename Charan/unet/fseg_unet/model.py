@@ -1,4 +1,4 @@
-"""U-Net, loss, inference and checkpoint helpers."""
+"""U-Net / MeshNet, loss, inference and checkpoint helpers."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,9 +12,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .data import ObservationDataset
+from .meshnet import MeshNet2d
 
 
-def build_model(encoder: str = "resnet34", pretrained: bool = True) -> nn.Module:
+def build_model(encoder: str = "resnet34", pretrained: bool = True, arch: str = "unet", channels: int = 32) -> nn.Module:
+    if arch == "meshnet":
+        return MeshNet2d(in_channels=3, channels=channels, n_classes=1)
     return smp.Unet(
         encoder_name=encoder,
         encoder_weights="imagenet" if pretrained else None,
@@ -73,6 +76,7 @@ def save_weights(model, path: Path, meta: dict, half: bool = True) -> None:
 def load_weights(path: Path, device) -> tuple[nn.Module, dict]:
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
     meta = ckpt["meta"]
-    model = build_model(meta["encoder"], pretrained=False)
+    model = build_model(meta["encoder"], pretrained=False, arch=meta.get("arch", "unet"),
+                        channels=meta.get("channels", 32))
     model.load_state_dict({k: v.float() if v.is_floating_point() else v for k, v in ckpt["state_dict"].items()})
     return model.to(device), meta

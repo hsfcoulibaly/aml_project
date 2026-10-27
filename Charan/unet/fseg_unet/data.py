@@ -26,12 +26,16 @@ def to_tensor(img: np.ndarray) -> torch.Tensor:
 
 
 class RecordDataset(Dataset):
-    """One sample per annotation record: (image, mask). Augments with dihedral transforms + light jitter."""
+    """One sample per annotation record: (image, mask). Augments with dihedral transforms + light jitter.
 
-    def __init__(self, paths: Paths, manifest, augment: bool):
+    crop > 0 takes a random crop x crop window (fully convolutional models train on crops, infer on whole images).
+    """
+
+    def __init__(self, paths: Paths, manifest, augment: bool, crop: int = 0):
         self.paths = paths
         self.rows = manifest[["observation_id", "record_id"]].to_numpy()
         self.augment = augment
+        self.crop = crop
 
     def __len__(self):
         return len(self.rows)
@@ -50,6 +54,9 @@ class RecordDataset(Dataset):
             bias = np.random.uniform(-12, 12)
             on_disk = img[..., :1] > 0
             img = np.where(on_disk, np.clip(img.astype(np.float32) * gain + bias, 1, 255), 0).astype(np.uint8)
+        if 0 < self.crop < img.shape[0]:
+            r, c = np.random.randint(img.shape[0] - self.crop + 1, size=2)
+            img, mask = img[r:r + self.crop, c:c + self.crop], mask[r:r + self.crop, c:c + self.crop]
         x = to_tensor(np.ascontiguousarray(img))
         y = torch.from_numpy((np.ascontiguousarray(mask) > 127).astype(np.float32))[None]
         return x, y

@@ -1,7 +1,9 @@
-"""Stage 1: train the U-Net; keep the checkpoint with the best validation PQ.
+"""Stage 1: train the U-Net (or MeshNet); keep the checkpoint with the best validation PQ.
 
     python scripts/train.py --epochs 40 --batch 8          # uses every visible GPU
     python scripts/train.py --resume                        # continue an interrupted run
+    python scripts/train.py --arch meshnet --channels 32 --crop 512 --batch 16 --lr 3e-3 \
+        --weight-decay 1e-2 --warmup-frac 0.05 --grad-clip 1.0 --epochs 100   # dilated MeshNet recipe
 
 Writes to <work>/runs/<name>/: best.pt (fp16 weights), last_state.pt (resume), history.csv.
 """
@@ -27,6 +29,7 @@ from fseg_unet import evaluate as E  # noqa: E402
 from fseg_unet import labels  # noqa: E402
 from fseg_unet.config import SEED, get_paths  # noqa: E402
 from fseg_unet.data import RecordDataset, read_image  # noqa: E402
+from fseg_unet.meshnet import receptive_field  # noqa: E402
 from fseg_unet.model import BCEDiceLoss, build_model, predict_probs, save_weights, unwrap  # noqa: E402
 
 
@@ -46,12 +49,17 @@ def main():
     ap.add_argument("--data-root", default=None)
     ap.add_argument("--work-dir", default=None)
     ap.add_argument("--name", default="unet_r34")
-    ap.add_argument("--encoder", default="resnet34")
+    ap.add_argument("--arch", choices=["unet", "meshnet"], default="unet")
+    ap.add_argument("--encoder", default="resnet34", help="U-Net encoder")
+    ap.add_argument("--channels", type=int, default=32, help="MeshNet width")
+    ap.add_argument("--crop", type=int, default=0, help="random training crop size in px (0 = whole image)")
     ap.add_argument("--no-pretrained", action="store_true", help="random init (offline smoke tests)")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=8, help="total across GPUs")
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--weight-decay", type=float, default=1e-4)
+    ap.add_argument("--warmup-frac", type=float, default=0.0, help="warmup as a share of all steps (0 = one epoch)")
+    ap.add_argument("--grad-clip", type=float, default=0.0, help="max gradient norm (0 = off)")
     ap.add_argument("--pos-weight", type=float, default=10.0)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--pq-every", type=int, default=1, help="compute val PQ every N epochs")
@@ -77,25 +85,35 @@ def main():
     print(f"train records {len(train_m)} | val images {len(val_obs)} | input {size}px")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_model(args.encoder, pretrained=not args.no_pretrained).to(device)
+    model = build_model(args.encoder, pretrained=not args.no_pretrained, arch=args.arch,
+                        channels=args.channels).to(device)
+    if args.arch == "meshnet":
+        print(f"MeshNet dilations {model.dilations} | receptive field {receptive_field(model.dilations)} px")
     n_gpu = torch.cuda.device_count()
     if n_gpu > 1:
         model = nn.DataParallel(model)
     print(f"device {device} x{max(n_gpu, 1)} | params {sum(p.numel() for p in model.parameters()) / 1e6:.1f}M")
 
-    loader = DataLoader(RecordDataset(paths, train_m, augment=True), batch_size=args.batch, shuffle=True,
+    loader = DataLoader(RecordDataset(paths, train_m, augment=True, crop=args.crop), batch_size=args.batch, shuffle=True,
                         num_workers=args.workers, pin_memory=device.type == "cuda", drop_last=True,
                         worker_init_fn=worker_init, persistent_workers=args.workers > 0)
     steps_per_epoch = min(len(loader), args.max_train_batches or len(loader))
-    total, warmup = args.epochs * steps_per_epoch, steps_per_epoch
+    total = args.epochs * steps_per_epoch
+    warmup = max(1, int(args.warmup_frac * total)) if args.warmup_frac > 0 else steps_per_epoch
 
-    def lr_lambda(step):  # 1 epoch linear warmup, then cosine down to 1% of the peak
+    def lr_lambda(step):  # linear warmup, then cosine down to 1% of the peak
         if step < warmup:
             return (step + 1) / warmup
         return 0.01 + 0.99 * 0.5 * (1 + math.cos(math.pi * (step - warmup) / max(1, total - warmup)))
 
     criterion = BCEDiceLoss(pos_weight=args.pos_weight).to(device)
-    opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    if args.arch == "meshnet":  # decay conv weights only, not GroupNorm gains/biases or conv biases
+        decay = [p for p in model.parameters() if p.ndim > 1]
+        no_decay = [p for p in model.parameters() if p.ndim <= 1]
+        params = [{"params": decay, "weight_decay": args.weight_decay}, {"params": no_decay, "weight_decay": 0.0}]
+    else:
+        params = model.parameters()
+    opt = torch.optim.AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
 
@@ -123,6 +141,9 @@ def main():
             with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"):
                 loss = criterion(model(x), y)
             scaler.scale(loss).backward()
+            if args.grad_clip > 0:
+                scaler.unscale_(opt)
+                nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             scaler.step(opt)
             scaler.update()
             sched.step()
@@ -145,7 +166,8 @@ def main():
         msg = " | ".join(f"{k} {v:.4f}" if isinstance(v, float) else f"{k} {v}" for k, v in row.items())
         if "val_pq" in row and row["val_pq"] > best_pq:
             best_pq, stale = row["val_pq"], 0
-            save_weights(model, run_dir / "best.pt", {"encoder": args.encoder, "size": size, "epoch": epoch,
+            save_weights(model, run_dir / "best.pt", {"arch": args.arch, "encoder": args.encoder,
+                                                      "channels": args.channels, "size": size, "epoch": epoch,
                                                       "metrics": {k: float(v) for k, v in row.items()}})
             msg += "  <- best"
         elif "val_pq" in row:
