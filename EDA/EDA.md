@@ -1,5 +1,10 @@
 # Exploratory Data Analysis: MAGFiLO 1.0 (Kaggle 2026)
 
+> **Builds on** Amirthavarshani's original EDA, [`Varshi/data_description_cleaning_eda.ipynb`](../Varshi/data_description_cleaning_eda.ipynb).
+> See her notebook for the data-cleaning checks, bounding-box aspect ratios and a loss-weight suggestion. This
+> page recomputes the shared statistics on the full dataset instead of a sample, so some values differ slightly
+> from hers: inter-annotator IoU is 0.475 from all 598 pairs here vs 0.445 from 82 pairs there.
+
 Every number below is computed by [`eda.py`](eda.py) from the competition data. Running it also writes all the
 numbers to `stats.json`, which is not committed. Figures are in [`figures/`](figures/); the two that render competition images
 (`14_examples.png`, `15_ring_example.png`) are generated locally but not committed. To reproduce:
