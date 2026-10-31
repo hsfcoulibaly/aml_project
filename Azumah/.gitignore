@@ -6,3 +6,4 @@ runs/
 *.pkl
 submission.csv
 gmon.out
+kaggle_out/
