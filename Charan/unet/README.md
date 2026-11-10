@@ -63,6 +63,24 @@ UNET_DATA_ROOT=/tmp/synth UNET_WORK_DIR=/tmp/work python scripts/train.py --enco
 
 On the synthetic set the smoke run reaches val PQ 0.78 (annotator ceiling 0.875), which confirms the pipeline learns end to end.
 
+## Model averaging + stricter keep rule (branch `charan/ensemble`)
+
+`fseg_unet/ensemble.py` and `scripts/ensemble.py`, run by `notebooks/kaggle_ensemble.ipynb` (no training):
+
+1. 8-view D4 TTA probability maps from several checkpoints, then a weighted average.
+2. Candidates: connected components of `p > t_lo` inside the disk, after an optional closing (radius 6 px at
+   2048) that bridges gaps between fragments of one filament.
+3. A candidate is kept when its peak `>= t_hi`, its mean `>= min_mean` and its area `>= min_area`. The old rule is
+   `t_lo = t_hi`, no mean filter, no closing.
+4. The rules are swept on the 7-day validation set. Candidate/GT matches are cached once per `(t_lo, close)`, so
+   each rule costs only a few array operations.
+5. The 0.03 to 0.06 PQ val-to-public gap is modelled as sparser test labels: each filament is kept in the test
+   labels with probability `r`, fitted on past submissions. The script reports the best rule both by validation
+   PQ and by estimated public PQ.
+
+A checkpoint trained on part of the validation images (run 1, Sheikh's split) can join a blend, but that blend
+reuses the rules of an honest blend instead of being swept.
+
 ## Next
 
 Distance/boundary head + watershed to split touching filaments; sliding-window inference at full resolution;
