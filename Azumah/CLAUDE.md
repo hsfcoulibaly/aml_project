@@ -1,6 +1,6 @@
 # Project notes for Claude Code
 
-Kaggle Solar Filament Segmentation Challenge 2026, scored with Panoptic Quality. Deadline Nov 15, 2026.
+Kaggle Solar Filament Segmentation Challenge 2026, scored with Panoptic Quality. Deadline Sat Nov 14, 2026, 8:00 pm EST (Nov 15 01:00 UTC).
 
 * **Start by reading `HANDOFF.md`**: status, data conventions, and specs for every remaining stage.
 * Package code lives in `fseg/`, entry points in `scripts/`, cluster jobs in `slurm/`.
