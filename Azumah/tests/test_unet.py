@@ -55,6 +55,24 @@ def test_prob_to_instances_threshold_area_score():
     assert len(out) == 1 and abs(out[0][1] - 0.9) < 1e-6 and R.area([out[0][0]])[0] == 4000
 
 
+
+def test_crop_window_inside_image_and_on_filament():
+    from fseg.unet_data import crop_window
+
+    tgt = np.zeros((2048, 2048, 3), np.uint8)
+    tgt[1800:1810, 1700:1900, 0] = 255  # one filament near the corner
+    img = np.zeros((2048, 2048, 3), np.uint8)
+    img[200:1900, 200:1900] = 100  # on-disk region
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        y0, x0 = crop_window(tgt, img, 1024, 1.0, rng)
+        assert 0 <= y0 <= 1024 and 0 <= x0 <= 1024
+        assert tgt[y0:y0 + 1024, x0:x0 + 1024, 0].any()  # pos_frac 1: every crop holds the filament
+    empty = np.zeros_like(tgt)
+    for _ in range(20):  # no filament: falls back to an on-disk centre, still in bounds
+        y0, x0 = crop_window(empty, img, 1024, 1.0, rng)
+        assert img[y0:y0 + 1024, x0:x0 + 1024, 0].any()
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

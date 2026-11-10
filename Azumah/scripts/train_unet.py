@@ -32,11 +32,11 @@ from fseg.unet import (LossWeights, build_model, pick_device, predict_full, prob
 from fseg.unet_data import FilamentDataset, build_targets, read_image, unet_root  # noqa: E402
 
 
-def val_pq(model, paths, obs, refs, size, device, thr, min_area):
+def val_pq(model, paths, obs, refs, size, device, thr, min_area, tile=None):
     model.eval()
     preds = {}
     for o in obs:
-        prob = predict_full(model, read_image(paths, "train", o, size), device, tile=size, tta="none")[0]
+        prob = predict_full(model, read_image(paths, "train", o, size), device, tile=tile or size, tta="none")[0]
         if size != IMAGE_SIZE:
             prob = cv2.resize(prob, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
         disk = cv2.imread(str(paths.preprocessed / "train" / f"{o}.jpg"), cv2.IMREAD_GRAYSCALE) > 0
@@ -54,6 +54,11 @@ def main():
     ap.add_argument("--no-pretrained", action="store_true", help="random encoder init (offline smoke tests)")
     ap.add_argument("--no-aspp", action="store_true")
     ap.add_argument("--size", type=int, default=1024, help="training/inference resolution of the full disk")
+    ap.add_argument("--crop", type=int, default=0,
+                    help="train on random crops of this size from the --size image (0 = whole disk); "
+                         "inference then slides a window of this size. Native res: --size 2048 --crop 1024")
+    ap.add_argument("--pos-frac", type=float, default=0.7, help="--crop: fraction of crops centred on a filament")
+    ap.add_argument("--crops-per-image", type=int, default=1, help="--crop: windows drawn per image per epoch")
     ap.add_argument("--epochs", type=int, default=40)
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--lr", type=float, default=3e-4)
@@ -88,7 +93,8 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
     device = pick_device(args.device)
     cfg = {"encoder": args.encoder, "encoder_weights": None if args.no_pretrained else "imagenet",
-           "aspp": not args.no_aspp, "size": args.size}
+           "aspp": not args.no_aspp, "size": args.size,
+           "tile": args.crop if 0 < args.crop < args.size else args.size}
     weights = LossWeights()
     (run_dir / "config.json").write_text(json.dumps({**cfg, **vars(args), "loss": asdict(weights)}, indent=2))
     print(f"[unet] fold {args.fold}: {len(train_obs)} train / {len(val_obs)} val images, device {device}")
@@ -97,7 +103,8 @@ def main():
     core = model
     if device.type == "cuda" and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
-    loader = DataLoader(FilamentDataset(paths, train_obs, args.size, augment=True), batch_size=args.batch,
+    loader = DataLoader(FilamentDataset(paths, train_obs, args.size, augment=True, crop=args.crop,
+                                        pos_frac=args.pos_frac, repeat=args.crops_per_image), batch_size=args.batch,
                         shuffle=True, num_workers=args.workers, drop_last=len(train_obs) > args.batch,
                         pin_memory=device.type == "cuda", persistent_workers=args.workers > 0)
     steps = min(len(loader), args.max_batches or len(loader))
@@ -145,7 +152,8 @@ def main():
         row = {"epoch": epoch, "train_loss": run / steps, **{k: v / steps for k, v in parts_sum.items()},
                "lr": opt.param_groups[0]["lr"], "epoch_s": time.time() - t0}
         if epoch % args.pq_every == 0 or epoch == args.epochs:
-            res = val_pq(core, paths, pq_obs, refs, args.size, device, args.pq_threshold, args.pq_min_area)
+            res = val_pq(core, paths, pq_obs, refs, args.size, device, args.pq_threshold, args.pq_min_area,
+                         tile=cfg["tile"])
             row.update({f"val_{k}": res[k] for k in ("pq", "sq", "rq", "precision", "recall", "one_to_many_rate")})
             if res["pq"] > best:
                 best, stale = res["pq"], 0

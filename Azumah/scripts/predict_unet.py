@@ -35,8 +35,8 @@ def predict_maps(models, paths, split, obs, out_dir, device, tta):
     out_dir.mkdir(parents=True, exist_ok=True)
     for o in tqdm(obs, desc=f"U-Net {split}"):
         acc = None
-        for model, size in models:
-            p = predict_full(model, read_image(paths, split, o, size), device, tile=size, tta=tta)
+        for model, size, tile in models:
+            p = predict_full(model, read_image(paths, split, o, size), device, tile=tile, tta=tta)
             if size != IMAGE_SIZE:
                 p = np.stack([cv2.resize(c, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_LINEAR) for c in p])
             acc = p if acc is None else acc + p
@@ -96,7 +96,8 @@ def main():
 
     def load(fold):
         model, ckpt = load_weights(root / "runs" / f"{args.name}_f{fold}" / "best.pt", device)
-        return model, ckpt["cfg"]["size"]
+        size = ckpt["cfg"]["size"]
+        return model, size, ckpt["cfg"].get("tile", size)  # tile < size: native-resolution crop model
 
     if args.split == "oof":
         map_dir = root / "maps" / args.name / "oof"

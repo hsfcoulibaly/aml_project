@@ -77,22 +77,55 @@ def read_image(paths: Paths, split: str, obs: str, size: int) -> np.ndarray:
     return img if size == IMAGE_SIZE else cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
 
 
-class FilamentDataset(Dataset):
-    """(image, target) per observation at `size` px. Augment: all 8 dihedral transforms + on-disk gain/bias."""
+def crop_window(tgt: np.ndarray, img: np.ndarray, crop: int, pos_frac: float,
+                rng: np.random.Generator) -> tuple[int, int]:
+    """Top-left corner of a `crop` px window. With probability `pos_frac` the window is centred
+    (with jitter) on a random filament pixel, otherwise on a random on-disk pixel."""
+    h, w = tgt.shape[:2]
+    step = 8  # pick centres on a coarse grid: cheap, and exact placement does not matter
+    src = tgt[::step, ::step, 0] if rng.random() < pos_frac else None
+    pts = np.argwhere(src > 0) if src is not None else np.empty((0, 2), int)
+    if len(pts) == 0:
+        pts = np.argwhere(img[::step, ::step, 0] > 0)
+    if len(pts) == 0:
+        cy, cx = h // 2, w // 2
+    else:
+        cy, cx = pts[rng.integers(len(pts))] * step
+        jitter = crop // 4
+        cy, cx = cy + rng.integers(-jitter, jitter + 1), cx + rng.integers(-jitter, jitter + 1)
+    y0 = int(np.clip(cy - crop // 2, 0, h - crop))
+    x0 = int(np.clip(cx - crop // 2, 0, w - crop))
+    return y0, x0
 
-    def __init__(self, paths: Paths, observations: list[str], size: int, augment: bool):
+
+class FilamentDataset(Dataset):
+    """(image, target) per observation at `size` px. Augment: all 8 dihedral transforms + on-disk gain/bias.
+
+    `crop` > 0 trains on random `crop` px windows of the `size` px image instead of the whole disk
+    (native resolution: size 2048, crop 1024); `pos_frac` of windows are centred on a filament.
+    `repeat` draws that many windows per image per epoch."""
+
+    def __init__(self, paths: Paths, observations: list[str], size: int, augment: bool,
+                 crop: int = 0, pos_frac: float = 0.7, repeat: int = 1):
         self.paths, self.obs, self.size, self.augment = paths, list(observations), size, augment
+        self.crop, self.pos_frac, self.repeat = (crop if 0 < crop < size else 0), pos_frac, max(1, repeat)
         self.target_dir = unet_root(paths) / "targets"
 
     def __len__(self):
-        return len(self.obs)
+        return len(self.obs) * self.repeat
 
     def __getitem__(self, i):
-        obs = self.obs[i]
+        obs = self.obs[i % len(self.obs)]
         img = read_image(self.paths, "train", obs, self.size)
         tgt = cv2.imread(str(self.target_dir / f"{obs}.png"), cv2.IMREAD_COLOR)
         if self.size != IMAGE_SIZE:
             tgt = cv2.resize(tgt, (self.size, self.size), interpolation=cv2.INTER_AREA)
+        if self.crop:
+            # numpy's global RNG is reseeded per DataLoader worker by torch, so draw the seed from it
+            rng = np.random.default_rng(np.random.randint(2**31))
+            y0, x0 = crop_window(tgt, img, self.crop, self.pos_frac, rng)
+            img = img[y0:y0 + self.crop, x0:x0 + self.crop]
+            tgt = tgt[y0:y0 + self.crop, x0:x0 + self.crop]
         if self.augment:
             # the full disk has no preferred orientation, so every dihedral transform is label-preserving
             k = np.random.randint(4)
