@@ -37,7 +37,7 @@ from fseg.yolo_infer import write_submission  # noqa: E402
 MODES = {"quality": lambda q, c: q, "quality_x_conf": lambda q, c: q * c, "conf": lambda q, c: c}
 
 
-def refine_all(model, paths, split, raw, map_dir, device, min_conf, thr):
+def refine_all(model, paths, split, raw, map_dir, device, min_conf, thr, tta="hflip"):
     out = {}
     for obs, item in tqdm(raw.items(), desc="refine"):
         image = read_image(paths, split, obs, IMAGE_SIZE)
@@ -53,7 +53,7 @@ def refine_all(model, paths, split, raw, map_dir, device, min_conf, thr):
             crops.append(crop_inputs(image, umap, m, M))
             Ms.append(M)
             confs.append(s)
-        probs, quals = refine(model, np.stack(crops), device) if crops else (np.zeros(0), np.zeros(0))
+        probs, quals = refine(model, np.stack(crops), device, tta=tta) if crops else (np.zeros(0), np.zeros(0))
         inst = []
         for p, q, c, M in zip(probs, quals, confs, Ms):
             full = paste(p, M, thr)
@@ -76,7 +76,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("split", choices=["oof", "test"])
     ap.add_argument("--fold", type=int, default=0)
-    ap.add_argument("--refiner", default=None, help="refiner run name (default refiner_v<fold> / refiner_full)")
+    ap.add_argument("--refiner", nargs="+", default=None,
+                    help="refiner run name(s), several = ensemble (default refiner_v<fold> / refiner_full)")
+    ap.add_argument("--tta", default="hflip", choices=["hflip", "d4"])
+    ap.add_argument("--tag", default=None, help="output folder name under work/refiner (default: first refiner)")
+    ap.add_argument("--raw", default=None, help="test: proposals pickle (default runs/<yolo-run>/test_raw.pkl)")
     ap.add_argument("--unet-name", default="unet")
     ap.add_argument("--yolo-run", default="consensus_ffull", help="test: run dir holding test_raw.pkl")
     ap.add_argument("--min-conf", type=float, default=0.05, help="proposals below this YOLO conf are not refined")
@@ -91,9 +95,11 @@ def main():
 
     paths = get_paths(args.data_root, args.work_dir)
     device = pick_device(args.device)
-    name = args.refiner or (f"refiner_v{args.fold}" if args.split == "oof" else "refiner_full")
-    run_dir = paths.work_dir / "refiner" / name
-    model, _ = load_refiner(run_dir / "best.pt", device)
+    names = args.refiner or [f"refiner_v{args.fold}" if args.split == "oof" else "refiner_full"]
+    models = [load_refiner(paths.work_dir / "refiner" / n / "best.pt", device)[0] for n in names]
+    model = models[0] if len(models) == 1 else models
+    run_dir = paths.work_dir / "refiner" / (args.tag or names[0])
+    run_dir.mkdir(parents=True, exist_ok=True)
     sub = "oof" if args.split == "oof" else "test"
     map_dir = paths.work_dir / "unet" / "maps" / args.unet_name / sub
     map_dir = map_dir if map_dir.exists() else None
@@ -102,7 +108,7 @@ def main():
         with open(paths.work_dir / "runs" / f"consensus_f{args.fold}" / f"oof_raw_fold{args.fold}.pkl", "rb") as f:
             raw = pickle.load(f)
         raw = dict(list(raw.items())[: args.limit])
-        refined = refine_all(model, paths, "train", raw, map_dir, device, args.min_conf, args.mask_thr)
+        refined = refine_all(model, paths, "train", raw, map_dir, device, args.min_conf, args.mask_thr, args.tta)
         with open(run_dir / f"refined_fold{args.fold}.pkl", "wb") as f:
             pickle.dump(refined, f)
 
@@ -121,7 +127,7 @@ def main():
         table.to_csv(run_dir / f"pq_sweep_fold{args.fold}.csv", index=False)
         best = table.iloc[0]
         cfg = {"mode": best["mode"], "min_area": int(best.min_area), "thr": float(best.thr),
-               "min_conf": args.min_conf, "mask_thr": args.mask_thr}
+               "min_conf": args.min_conf, "mask_thr": args.mask_thr, "tta": args.tta, "refiners": names}
         (run_dir / "pq_config.json").write_text(json.dumps(cfg, indent=2))
         print(table.head(10)[["mode", "min_area", "thr", "pq", "sq", "rq", "precision", "recall"]].to_string())
         res = evaluate({o: by_conf(v, cfg["thr"]) for o, v in ranked(refined, cfg["mode"], cfg["min_area"]).items()},
@@ -131,10 +137,10 @@ def main():
         print(f"Stage 3 (refiner), fold {args.fold}, {cfg}: {summary(res)}")
     else:
         cfg = json.loads(Path(args.config).read_text())
-        with open(paths.work_dir / "runs" / args.yolo_run / "test_raw.pkl", "rb") as f:
+        with open(Path(args.raw) if args.raw else paths.work_dir / "runs" / args.yolo_run / "test_raw.pkl", "rb") as f:
             raw = pickle.load(f)
         raw = dict(list(raw.items())[: args.limit])
-        refined = refine_all(model, paths, "test", raw, map_dir, device, cfg["min_conf"], cfg["mask_thr"])
+        refined = refine_all(model, paths, "test", raw, map_dir, device, cfg["min_conf"], cfg["mask_thr"], cfg.get("tta", "hflip"))
         with open(run_dir / "refined_test.pkl", "wb") as f:
             pickle.dump(refined, f)
         preds = {o: by_conf(v, cfg["thr"]) for o, v in ranked(refined, cfg["mode"], cfg["min_area"]).items()}

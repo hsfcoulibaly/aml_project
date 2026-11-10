@@ -1,0 +1,109 @@
+# Current best pipeline (public LB 0.40, fold-0 OOF PQ 0.447)
+
+Solar Filament Segmentation Challenge 2026 (Kaggle `filament-segmentation-2026`). Data: 707 GONG H-alpha
+full-disk training images (2048 x 2048 grayscale), 1 to 3 independent annotation sets per image (1,154
+annotation records, 8,199 filament polygons), 180 test images. Metric: Panoptic Quality,
+PQ = sum of matched IoU / (TP + 0.5 FP + 0.5 FN), match when IoU > 0.5, scored against each annotation set.
+Code: `Azumah/` in github.com/hsfcoulibaly/aml_project. Everything below runs on Kaggle (2x T4).
+
+## Results so far (fold-0 out-of-fold, same 142 images; local PQ follows the organizers' scorer)
+
+| Variant | PQ | SQ | RQ | Precision | Recall | Public LB |
+|---|---|---|---|---|---|---|
+| Human agreement (one annotator vs the others) | 0.344 | 0.635 | 0.542 | | | |
+| U-Net alone (stage 2) | 0.406 | 0.676 | 0.600 | 0.628 | 0.575 | |
+| YOLO11l-seg alone (stage 1) | 0.417 | 0.668 | 0.625 | 0.645 | 0.607 | 0.35 |
+| YOLO + refiner (stage 3) | 0.446 | 0.683 | 0.653 | 0.714 | 0.602 | |
+| YOLO + refiner + fusion (stage 4, submitted) | **0.447** | 0.683 | 0.654 | 0.721 | 0.599 | **0.40** |
+
+YOLO OOF PQ over all 5 folds: 0.417, 0.420, 0.405, 0.427, 0.434 (mean 0.421). Public LB: 0.40 = rank 212 of
+1,477; 0.41 to 0.42 is the best honest score on the board (107 teams at exactly 0.55 submit a hard-coded
+answer file from a public notebook).
+
+## Pipeline, in run order
+
+### Stage 0: data (`scripts/prepare.py --size 1280 --modes consensus largest`)
+* 5 folds grouped by physical image (all annotation sets of an image stay in one fold), stratified by
+  observing site x filament-count quartile.
+* Consensus targets: instances from different annotation sets are clustered (IoU > 0.2 or > 50% cover);
+  a filament is kept if at least half of the image's annotators drew it.
+* Preprocessing: fit the solar disk, divide out radial limb darkening, 3 channels
+  (raw, limb-flattened, CLAHE), sky set to 0.
+
+### Stage 1: YOLO proposer (`notebooks/01_yolo_stage.ipynb`, `01b_yolo_folds.ipynb`)
+```bash
+python scripts/train_yolo.py --mode consensus --fold k --model yolo11l-seg.pt --imgsz 1280 --epochs 60 --batch 4
+python scripts/predict_yolo.py oof  --weights runs/consensus_fk/weights/best.pt --fold k     # k = 0..4
+python scripts/train_yolo.py --mode consensus --fold full ...                                 # test model
+python scripts/predict_yolo.py test --weights runs/consensus_ffull/weights/best.pt --config runs/consensus_f0/pq_config.json
+```
+* YOLO11l-seg (27.6M params), COCO-pretrained, single class, 1280 px input (filament median width ~11 px at
+  2048), AdamW lr 1e-3 cosine, 60 epochs, batch 4 on 2x T4 (batch 8 runs out of memory), mask_ratio 2,
+  augmentation: 180 degree rotations, both flips, mosaic 0.5, scale 0.25, brightness 0.2.
+* Inference: full image at 1280, 4-view flip TTA merged by mask voting, masks upsampled to 2048, greedy
+  overlap resolution by score, off-disk filter. Thresholds (conf 0.25, min area 300) tuned for PQ on OOF.
+* Output used downstream: all instances with conf >= 0.05 (`oof_raw_fold<k>.pkl`, `test_raw.pkl`).
+
+### Stage 2: dense U-Net (`notebooks/02_unet_stage.ipynb`)
+```bash
+python scripts/train_unet.py --fold k --epochs 30 --batch 4      # k = 0..4, two folds at a time
+python scripts/predict_unet.py oof  --folds 0 1 2 3 4 --sweep-fold 0 --tta flip
+python scripts/predict_unet.py test --folds 0 1 2 3 4            # 5-fold average maps
+```
+* smp U-Net, ConvNeXt-tiny ImageNet encoder + residual ASPP (rates 1, 6, 12, 18 + image pooling) on the
+  deepest feature, whole disk resized to 1024.
+* 3 outputs: filament (soft target = fraction of annotation sets marking the pixel), centerline (skeletons of
+  consensus instances, dilated 2 px), boundary (morphological gradient of consensus instances).
+* Loss: 0.5 BCE (pos_weight 10) + 0.5 batch soft Dice + 0.25 clDice on filament; 0.25 centerline BCE
+  (pos_weight 10); 0.1 boundary BCE (pos_weight 5). AdamW 3e-4, 1-epoch warmup + cosine, AMP, dihedral +
+  on-disk gain/bias augmentation. Checkpoint by validation PQ. 30 epochs, 2 min/epoch; validation PQ was
+  still rising at epoch 30 in 4 of 5 folds.
+* Used downstream as maps (filament + centerline probabilities at 2048), out-of-fold for all 707 images.
+
+### Stage 3: instance-conditioned refiner (`notebooks/03_refine_fuse.ipynb`)
+```bash
+python scripts/train_refiner.py --val-fold 0          # folds 1-4, validated on fold 0
+python scripts/train_refiner.py --val-fold none       # all folds, used for the test set
+python scripts/predict_refiner.py oof --fold 0
+python scripts/predict_refiner.py test --config refiner/refiner_v0/pq_config.json
+```
+* Per proposal: square crop around its box with 1.5x context (min 128 px at 2048), resized to 256.
+  Input (5 channels): limb-flattened, CLAHE, proposal mask, U-Net filament prob, U-Net centerline.
+* Model: smp U-Net, ResNet-34 ImageNet encoder (24M params), mask output + scalar quality head that predicts
+  the IoU of its own mask with the matched ground truth (0 for false positives).
+* Training samples, mixed 40/40/20: consensus filaments with a corrupted copy of themselves as the prior
+  (4x down-up sampling like YOLO prototypes, erode/dilate, shift, dropped segments, bleed into neighbours);
+  real out-of-fold YOLO proposals matched at IoU > 0.2 (target = that filament); unmatched proposals (IoU < 0.1)
+  as negatives (empty target, quality 0).
+* Loss: BCE + Dice on mask, smooth L1 on quality. AdamW 3e-4, warmup + cosine, 30 epochs (8.8 min/epoch,
+  data-loading bound).
+* Inference: refine every proposal with conf >= 0.05, hflip TTA, paste back at 2048, score =
+  quality x YOLO conf, greedy overlap resolution, keep score >= 0.1 and area >= 300.
+
+### Stage 4: topology-aware fusion (same notebook)
+```bash
+python scripts/fuse.py oof  --source refiner --fold 0
+python scripts/fuse.py test --source refiner --config fusion/refiner_f0/fusion_config.json
+```
+* Merge two instances when skeleton endpoints face each other (gap <= 120 px, both end directions within
+  30 degrees of the gap) and the mean U-Net probability along the gap is >= 0.2; bridge with U-Net pixels.
+* Also implemented, rejected by the PQ sweep: recovering U-Net-only components, elongation shape filter.
+* Final: score >= 0.1, area >= 300. Gain over stage 3: +0.001.
+
+## Known weaknesses
+
+1. Recall is the weak side (about 0.60 at every stage): about 3 true filaments missed per image.
+2. Public LB is about 0.05 below OOF for every model (0.417 -> 0.35, 0.447 -> 0.40). Public notebooks report the
+   same gap and attribute it to sparser test labels, which makes every extra prediction cost more.
+3. Test proposals come from the single full-data YOLO model, not the 5-fold ensemble.
+4. The refiner was data-loading bound (30 epochs only); the U-Net stopped while still improving.
+5. Fusion barely helps once the refiner is in: splitting is already down to 1.6%.
+
+## In progress (Nov 10)
+
+* Refiner crop cache in memory (epochs become GPU-bound), then a 2D MeshNet refiner (13 dilated 3x3 layers,
+  rates 1, 3, 5, 7, 13, 19, 31 and back, receptive field 255 = crop size, a few thousand parameters,
+  per-channel GroupNorm, GELU) trained with the catalyst recipe (AdamW wd 1e-2, OneCycle to lr 1e-2 with 5%
+  warmup, grad clip 1.0, accumulation 2, label smoothing 0.01 + generalized Dice, long training).
+* 5-fold + full YOLO ensemble for test proposals, D4 TTA in the refiner, ResNet + MeshNet refiner ensemble.
+* Deadline Nov 15: 4-page report, public repo with pinned requirements and weights, end-to-end notebook.

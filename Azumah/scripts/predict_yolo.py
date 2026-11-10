@@ -29,12 +29,13 @@ from fseg.yolo_infer import apply, calibrate, predict_many, save_json, write_sub
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("split", choices=["oof", "test"])
-    ap.add_argument("--weights", required=True)
+    ap.add_argument("--weights", required=True, nargs="+", help="one or more .pt (several = fold ensemble)")
     ap.add_argument("--fold", type=int, default=0)
     ap.add_argument("--imgsz", type=int, default=1280)
     ap.add_argument("--tta", default="id,hflip,vflip,rot180", help="comma list from id,hflip,vflip,rot180")
     ap.add_argument("--config", default=None, help="pq_config.json from an oof run (test split)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--raw-out", default=None, help="test: where to save raw proposals (default <run>/test_raw.pkl)")
     ap.add_argument("--limit", type=int, default=None, help="debug: only first N images")
     ap.add_argument("--data-root", default=None)
     ap.add_argument("--work-dir", default=None)
@@ -44,9 +45,10 @@ def main():
     from ultralytics import YOLO
 
     paths = get_paths(args.data_root, args.work_dir)
-    model = YOLO(args.weights)
+    models = [YOLO(w) for w in args.weights]
+    model = models[0] if len(models) == 1 else models
     tta = [t for t in args.tta.split(",") if t]
-    run_dir = Path(args.weights).resolve().parents[1]
+    run_dir = Path(args.weights[0]).resolve().parents[1]
 
     if args.split == "oof":
         manifest = pd.read_csv(paths.manifest)
@@ -66,7 +68,9 @@ def main():
         cfg = json.loads(Path(args.config).read_text()) if args.config else {"conf_thr": 0.25, "min_area": 150}
         obs = sorted(p.stem for p in (paths.preprocessed / "test").glob("*.jpg"))[: args.limit]
         raw = predict_many(model, paths.preprocessed / "test", obs, args.imgsz, tta)
-        with open(run_dir / "test_raw.pkl", "wb") as f:
+        raw_out = Path(args.raw_out) if args.raw_out else run_dir / "test_raw.pkl"
+        raw_out.parent.mkdir(parents=True, exist_ok=True)
+        with open(raw_out, "wb") as f:
             pickle.dump(raw, f)
         preds = apply(raw, cfg["conf_thr"], cfg["min_area"], cfg.get("dark"))
         out = Path(args.out) if args.out else (Path("/kaggle/working/submission.csv")

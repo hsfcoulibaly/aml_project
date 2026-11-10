@@ -69,13 +69,16 @@ def _vote(views: list[list[tuple[np.ndarray, float]]], match_iou: float = 0.4, m
 
 def predict_image(model, img_full: np.ndarray, imgsz: int, tta: list[str], conf: float = 0.05,
                   iou: float = 0.6, max_det: int = 100) -> list[tuple[dict, float]]:
-    """img_full: 2048x2048x3 preprocessed BGR image. Returns [(rle at 2048, score)]."""
+    """img_full: 2048x2048x3 preprocessed BGR image. Returns [(rle at 2048, score)].
+
+    `model` may be a list (fold ensemble): every model x TTA view votes in the same `_vote`."""
     small = cv2.resize(img_full, (imgsz, imgsz), interpolation=cv2.INTER_AREA)
     views = []
-    for name in tta:
-        t = TTA[name]
-        masks, scores = _predict_view(model, np.ascontiguousarray(t(small)), imgsz, conf, iou, max_det)
-        views.append([(t(m), s) for m, s in zip(masks, scores)])
+    for m_ in model if isinstance(model, (list, tuple)) else [model]:
+        for name in tta:
+            t = TTA[name]
+            masks, scores = _predict_view(m_, np.ascontiguousarray(t(small)), imgsz, conf, iou, max_det)
+            views.append([(t(m), s) for m, s in zip(masks, scores)])
     merged = _vote(views)
     out = []
     for m, s in merged:
