@@ -111,4 +111,4 @@ python scripts/fuse.py test --source refiner --config fusion/refiner_f0/fusion_c
   per-channel GroupNorm, GELU) trained with the catalyst recipe (AdamW wd 1e-2, OneCycle to lr 1e-2 with 5%
   warmup, grad clip 1.0, accumulation 2, label smoothing 0.01 + generalized Dice, long training).
 * 5-fold + full YOLO ensemble for test proposals, D4 TTA in the refiner, ResNet + MeshNet refiner ensemble.
-* Deadline Nov 15: 4-page report, public repo with pinned requirements and weights, end-to-end notebook.
+* Deadline Sat Nov 14, 8:00 pm EST: 4-page report, public repo with pinned requirements and weights, end-to-end notebook.
