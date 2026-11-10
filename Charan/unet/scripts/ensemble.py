@@ -67,6 +67,8 @@ def main():
     ap.add_argument("--calib", action="append", default=[], help="NAME:THR:MIN_AREA:PUBLIC_PQ of a past submission")
     ap.add_argument("--blend", action="append", default=[], help="LABEL=name:w,name:w")
     ap.add_argument("--rules-from", action="append", default=[], help="LEAKY_BLEND=HONEST_BLEND")
+    ap.add_argument("--fixed-rule", action="append", default=[],
+                    help="BLEND=t_lo:t_hi:min_mean:min_area:close, a rule tuned in an earlier run")
     ap.add_argument("--tta", default="d4", choices=list(ens.TTA_VIEWS))
     ap.add_argument("--data-root", default=None)
     ap.add_argument("--work-dir", default=None)
@@ -96,15 +98,22 @@ def main():
         torch.cuda.empty_cache()
 
     blends = {label: parse_weights(w) for label, w in (b.split("=", 1) for b in args.blend)}
+    if not blends:  # no blends given: every model on its own
+        blends = {spec.split("=", 1)[0]: {spec.split("=", 1)[0]: 1.0} for spec in args.model}
+    fixed = {}
+    for f in args.fixed_rule:
+        b, r = f.split("=", 1)
+        t_lo, t_hi, mm, a, c = r.split(":")
+        fixed[b] = ens.KeepRule(float(t_lo), float(t_hi), float(mm), int(a), int(c))
     calib = [(n, float(t), int(a), float(lb)) for n, t, a, lb in (c.split(":") for c in args.calib)]
     for n, *_ in calib:  # calibration needs each calibrated model on its own
         blends.setdefault(n, {n: 1.0})
     rules_from = dict(r.split("=", 1) for r in args.rules_from)
     leaky = set(args.leaky)
-    honest = {b: w for b, w in blends.items() if not leaky & set(w)}
+    honest = {b: w for b, w in blends.items() if not leaky & set(w) and b not in fixed}
     for b in set(blends) - set(honest):
-        if b not in rules_from:
-            ap.error(f"blend {b} contains a leaky model; give --rules-from {b}=<honest blend>")
+        if b not in rules_from and b not in fixed:
+            ap.error(f"blend {b} contains a leaky model; give --rules-from {b}=<honest blend> or --fixed-rule")
 
     # 2. candidate instances + GT matches on val for every honest blend
     caches = {}
@@ -148,6 +157,9 @@ def main():
     for b, src in rules_from.items():
         chosen[b] = chosen[src]
         summary["blends"][b] = {"weights": blends[b], "rules_from": src}
+    for b, rule in fixed.items():
+        chosen[b] = {"fixed": rule}
+        summary["blends"][b] = {"weights": blends[b], "fixed_rule": asdict(rule)}
     del caches
 
     # 5. test submissions

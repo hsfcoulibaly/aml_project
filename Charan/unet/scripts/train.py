@@ -68,6 +68,9 @@ def main():
     ap.add_argument("--patience", type=int, default=10, help="epochs without PQ improvement before stopping")
     ap.add_argument("--max-train-batches", type=int, default=0, help="debug: cap batches per epoch")
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--train-on-val", action="store_true",
+                    help="final model: also train on the val records; val PQ is then only a (leaky) progress "
+                         "signal, there is no early stopping, and best.pt is the last epoch")
     args = ap.parse_args()
 
     seed_everything(SEED)
@@ -78,7 +81,7 @@ def main():
 
     manifest = labels.load_manifest(paths)
     refs = labels.load_references(paths)
-    train_m = manifest[manifest.split == "train"]
+    train_m = manifest[manifest.split.isin(["train", "val"] if args.train_on_val else ["train"])]
     val_obs = sorted(manifest.loc[manifest.split == "val", "observation_id"].unique())
     disks = E.disks_from_manifest(manifest)
     size = read_image(paths, val_obs[0]).shape[0]
@@ -164,7 +167,14 @@ def main():
         pd.DataFrame(history).to_csv(run_dir / "history.csv", index=False)
 
         msg = " | ".join(f"{k} {v:.4f}" if isinstance(v, float) else f"{k} {v}" for k, v in row.items())
-        if "val_pq" in row and row["val_pq"] > best_pq:
+        if args.train_on_val:  # no model selection on images the model trained on: keep the last epoch
+            if epoch == args.epochs:
+                save_weights(model, run_dir / "best.pt", {"arch": args.arch, "encoder": args.encoder,
+                                                          "channels": args.channels, "size": size, "epoch": epoch,
+                                                          "train_on_val": True,
+                                                          "metrics": {k: float(v) for k, v in row.items()}})
+                msg += "  <- final"
+        elif "val_pq" in row and row["val_pq"] > best_pq:
             best_pq, stale = row["val_pq"], 0
             save_weights(model, run_dir / "best.pt", {"arch": args.arch, "encoder": args.encoder,
                                                       "channels": args.channels, "size": size, "epoch": epoch,
@@ -177,7 +187,7 @@ def main():
         torch.save({"model": unwrap(model).state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
                     "scaler": scaler.state_dict(), "epoch": epoch, "best_pq": best_pq, "stale": stale,
                     "history": history}, state_path)
-        if stale >= args.patience:
+        if stale >= args.patience and not args.train_on_val:
             print(f"early stop: no PQ improvement for {stale} epochs")
             break
 
