@@ -16,6 +16,11 @@ Code: `Azumah/` in github.com/hsfcoulibaly/aml_project. Everything below runs on
 | YOLO + refiner (stage 3) | 0.446 | 0.683 | 0.653 | 0.714 | 0.602 | |
 | YOLO + refiner + fusion (stage 4, submitted) | **0.447** | 0.683 | 0.654 | 0.721 | 0.599 | **0.40** |
 
+Provenance of the 0.40 submission: `submission_fused.csv` from the Kaggle run `filament-seg-refine-fuse`
+(launched Nov 2, notebook `notebooks/03_refine_fuse.ipynb`, which clones the repo at launch: code commit
+`0757dd8`), downloaded and submitted on Nov 10. Upstream runs it reads: `filament-seg-yolo-stage`,
+`filament-seg-yolo-folds-1-2`, `filament-seg-yolo-folds-3-4`, `filament-seg-unet-stage`.
+
 YOLO OOF PQ over all 5 folds: 0.417, 0.420, 0.405, 0.427, 0.434 (mean 0.421). Public LB: 0.40 = rank 212 of
 1,477; 0.41 to 0.42 is the best honest score on the board (107 teams at exactly 0.55 submit a hard-coded
 answer file from a public notebook).

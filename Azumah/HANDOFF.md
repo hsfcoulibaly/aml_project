@@ -16,7 +16,7 @@ and the specification for every remaining stage.
   many-to-one counts, i.e. fragmentation and over-merging), 30% qualitative (pipeline description,
   visual morphology, code quality and documentation). End-to-end computational efficiency is also
   considered.
-* **Deadline: Nov 15, 2026, 11:59 pm CDT.** Deliverables: a 4-page technical report (organizers'
+* **Deadline: Sat Nov 14, 2026, 8:00 pm EST (Kaggle; Nov 15 01:00 UTC).** Deliverables: a 4-page technical report (organizers'
   Overleaf template, single PDF), a public Git repo with `requirements.txt` (pinned versions) and a
   Jupyter notebook showing the whole pipeline, submitted through the organizers' Google form.
 * Rules: only the provided test images at inference. **Do not train on other ground-truth metadata**:
