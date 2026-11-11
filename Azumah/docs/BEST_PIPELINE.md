@@ -14,7 +14,11 @@ Code: `Azumah/` in github.com/hsfcoulibaly/aml_project. Everything below runs on
 | U-Net alone (stage 2) | 0.406 | 0.676 | 0.600 | 0.628 | 0.575 | |
 | YOLO11l-seg alone (stage 1) | 0.417 | 0.668 | 0.625 | 0.645 | 0.607 | 0.35 |
 | YOLO + refiner (stage 3) | 0.446 | 0.683 | 0.653 | 0.714 | 0.602 | |
-| YOLO + refiner + fusion (stage 4, submitted) | **0.447** | 0.683 | 0.654 | 0.721 | 0.599 | **0.40** |
+| YOLO + refiner + fusion (stage 4, submitted) | 0.447 | 0.683 | 0.654 | 0.721 | 0.599 | **0.40** |
+| MeshNet refiner alone (7.5k params, catalyst recipe, D4) | 0.448 | 0.686 | 0.653 | 0.737 | 0.586 | |
+| ResNet-34 refiner, 60 epochs (D4) | 0.456 | 0.685 | 0.665 | 0.739 | 0.604 | |
+| ResNet-34 60 ep + MeshNet ensemble (D4), YOLO 6-model proposals | **0.457** | 0.688 | 0.665 | 0.703 | 0.630 | 0.39 |
+| Same, strict threshold 0.2 | 0.448 | | | 0.765 | | 0.39 |
 
 Provenance of the 0.40 submission: `submission_fused.csv` from the Kaggle run `filament-seg-refine-fuse`
 (launched Nov 2, notebook `notebooks/03_refine_fuse.ipynb`, which clones the repo at launch: code commit
@@ -103,6 +107,11 @@ python scripts/fuse.py test --source refiner --config fusion/refiner_f0/fusion_c
 3. Test proposals come from the single full-data YOLO model, not the 5-fold ensemble.
 4. The refiner was data-loading bound (30 epochs only); the U-Net stopped while still improving.
 5. Fusion barely helps once the refiner is in: splitting is already down to 1.6%.
+
+## Nov 11 run (`filament-seg-meshnet-ensemble`, notebook 04)
+
+Fold-0 OOF gain +0.010 over the 0.40 submission, but public LB 0.39 for both the best and the strict
+threshold. At two decimals on the public subset these differences are noise, so the final pick goes by OOF.
 
 ## In progress (Nov 10)
 
