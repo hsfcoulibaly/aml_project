@@ -67,6 +67,8 @@ def main():
     ap.add_argument("--val-limit", type=int, default=0, help="score val PQ on the first N images only (0 = all)")
     ap.add_argument("--max-batches", type=int, default=0, help="debug: cap batches per epoch")
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--init", default=None, help="warm start: weights from an earlier best.pt (fresh optimizer and schedule)")
+    ap.add_argument("--warmup-epochs", type=float, default=1.0)
     args = ap.parse_args()
 
     torch.manual_seed(SEED)
@@ -93,7 +95,12 @@ def main():
     (run_dir / "config.json").write_text(json.dumps({**cfg, **vars(args), "loss": asdict(weights)}, indent=2))
     print(f"[unet] fold {args.fold}: {len(train_obs)} train / {len(val_obs)} val images, device {device}")
 
-    model = build_model(cfg).to(device)
+    model = build_model({**cfg, "encoder_weights": None} if args.init else cfg)
+    if args.init:
+        init = torch.load(args.init, map_location="cpu", weights_only=False)["state_dict"]
+        model.load_state_dict({k: v.float() if v.is_floating_point() else v for k, v in init.items()})
+        print(f"[unet] warm start from {args.init}")
+    model = model.to(device)
     core = model
     if device.type == "cuda" and torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
@@ -101,7 +108,7 @@ def main():
                         shuffle=True, num_workers=args.workers, drop_last=len(train_obs) > args.batch,
                         pin_memory=device.type == "cuda", persistent_workers=args.workers > 0)
     steps = min(len(loader), args.max_batches or len(loader))
-    total, warmup = args.epochs * steps, steps
+    total, warmup = args.epochs * steps, max(1, int(args.warmup_epochs * steps))
 
     def lr_lambda(step):  # 1 epoch linear warmup, then cosine to 1% of the peak
         if step < warmup:
