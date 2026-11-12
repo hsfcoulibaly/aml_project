@@ -1,4 +1,4 @@
-# Current best pipeline (public LB 0.40, fold-0 OOF PQ 0.447)
+# Current best pipeline (pooled 5-fold OOF PQ 0.458, public LB 0.39 to 0.40)
 
 Solar Filament Segmentation Challenge 2026 (Kaggle `filament-segmentation-2026`). Data: 707 GONG H-alpha
 full-disk training images (2048 x 2048 grayscale), 1 to 3 independent annotation sets per image (1,154
@@ -112,6 +112,27 @@ python scripts/fuse.py test --source refiner --config fusion/refiner_f0/fusion_c
 
 Fold-0 OOF gain +0.010 over the 0.40 submission, but public LB 0.39 for both the best and the strict
 threshold. At two decimals on the public subset these differences are noise, so the final pick goes by OOF.
+
+## Nov 12 run (`filament-seg-refiner-5fold`, notebook 05): 5-fold refiner, pooled tuning
+
+ResNet-34 refiner (60 epochs) trained once per held-out fold; every training image refined by a model that
+never saw it; ranking, threshold and min area tuned once on all 707 images (conf, thr 0.3, min area 150, D4).
+
+| Fold | n | YOLO | Refiner | Gain |
+|---|---|---|---|---|
+| 0 | 142 | 0.417 | 0.452 | +0.035 |
+| 1 | 142 | 0.420 | 0.458 | +0.038 |
+| 2 | 141 | 0.405 | 0.444 | +0.040 |
+| 3 | 141 | 0.427 | 0.474 | +0.047 |
+| 4 | 141 | 0.434 | 0.462 | +0.028 |
+| **Pooled** | **707** | **0.421** | **0.458** | **+0.037** |
+
+* The refiner gain holds on every fold. Fold 0 with pooled settings is 0.452 against 0.456 with fold-0-tuned
+  settings: tuning on one fold was about 0.004 optimistic.
+* The top of the pooled sweep is flat (many settings within 0.0002), so the threshold choice is not fragile.
+* Public LB: 6-refiner vote 0.39; same refiners on single-model proposals 0.39. Every variant from OOF 0.447 to
+  0.458 lands on 0.39 or 0.40, so the public board (two decimals, about 90 images) cannot rank them.
+  Final pick goes by pooled OOF: `submission_r60x6_pooled.csv` (select manually; auto-select takes the 0.40).
 
 ## In progress (Nov 10)
 
