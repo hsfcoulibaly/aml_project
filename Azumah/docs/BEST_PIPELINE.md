@@ -134,6 +134,24 @@ never saw it; ranking, threshold and min area tuned once on all 707 images (conf
   0.458 lands on 0.39 or 0.40, so the public board (two decimals, about 90 images) cannot rank them.
   Final pick goes by pooled OOF: `submission_r60x6_pooled.csv` (select manually; auto-select takes the 0.40).
 
+## Nov 13 run (`filament-seg-unet-longer`, notebook 06): 50-epoch U-Net under the same refiner
+
+U-Net warm-started from the 30-epoch weights, 20 more epochs (fresh warmup + cosine, lr 1e-4). Standalone
+U-Net val PQ rose on every fold (0.378/0.386/0.380/0.404/0.388 to 0.382/0.386/0.384/0.412/0.397). The run hit
+Kaggle's 12 h limit after the OOF step; pooled tuning was done on CPU from its OOF pickles.
+
+| Fold | YOLO | Refiner, 30-ep maps | Refiner, 50-ep maps |
+|---|---|---|---|
+| 0 | 0.417 | 0.452 | 0.449 |
+| 1 | 0.420 | 0.458 | 0.460 |
+| 2 | 0.405 | 0.444 | 0.444 |
+| 3 | 0.427 | 0.474 | 0.475 |
+| 4 | 0.434 | 0.462 | 0.464 |
+| **Pooled** | **0.421** | **0.458** | **0.458** |
+
+Pooled 0.4582 against 0.4579: no gain. Better U-Net maps do not reach the final PQ once the refiner is in;
+the refiner is the bottleneck, not its U-Net inputs. No test submission made for this variant.
+
 ## In progress (Nov 10)
 
 * Refiner crop cache in memory (epochs become GPU-bound), then a 2D MeshNet refiner (13 dilated 3x3 layers,
