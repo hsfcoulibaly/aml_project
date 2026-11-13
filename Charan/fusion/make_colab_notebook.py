@@ -17,7 +17,7 @@ cells = [
 **Runtime:** GPU (A100 if available, else L4), **High-RAM** on. Then *Runtime > Run all*.
 
 **Kaggle token**, one of:
-* Colab secrets (key icon on the left): `KAGGLE_USERNAME` and `KAGGLE_KEY`, notebook access on; or
+* Colab secret `KAGGLE_API_TOKEN` (new-style token), or secrets `KAGGLE_USERNAME` + `KAGGLE_KEY`; notebook access on; or
 * `kaggle.json` in the root of your Google Drive.
 
 Everything is written to `MyDrive/filament_fusion/`. If the runtime disconnects, reconnect and *Run all*
@@ -30,17 +30,25 @@ drive.mount('/content/drive')
 DRIVE = Path('/content/drive/MyDrive/filament_fusion')
 for d in ['refiner', 'logs', 'results']:
     (DRIVE / d).mkdir(parents=True, exist_ok=True)
-try:
-    from google.colab import userdata
-    os.environ['KAGGLE_USERNAME'] = userdata.get('KAGGLE_USERNAME')
-    os.environ['KAGGLE_KEY'] = userdata.get('KAGGLE_KEY')
-except Exception:
+from google.colab import userdata
+
+def secret(k):
+    try:
+        return userdata.get(k)
+    except Exception:
+        return None
+
+if secret('KAGGLE_API_TOKEN'):  # new-style token (Kaggle settings > API > Generate New Token)
+    os.environ['KAGGLE_API_TOKEN'] = secret('KAGGLE_API_TOKEN')
+elif secret('KAGGLE_USERNAME') and secret('KAGGLE_KEY'):  # legacy kaggle.json values
+    os.environ['KAGGLE_USERNAME'], os.environ['KAGGLE_KEY'] = secret('KAGGLE_USERNAME'), secret('KAGGLE_KEY')
+else:
     tok = Path('/content/drive/MyDrive/kaggle.json')
-    assert tok.exists(), 'add KAGGLE_USERNAME / KAGGLE_KEY secrets or put kaggle.json in MyDrive'
+    assert tok.exists(), 'add a KAGGLE_API_TOKEN secret (or KAGGLE_USERNAME + KAGGLE_KEY), or put kaggle.json in MyDrive'
     Path('~/.kaggle').expanduser().mkdir(exist_ok=True)
     shutil.copy(tok, Path('~/.kaggle/kaggle.json').expanduser())
     os.chmod(Path('~/.kaggle/kaggle.json').expanduser(), 0o600)
-subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'kaggle', 'segmentation-models-pytorch', 'timm',
+subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'kaggle>=1.8', 'segmentation-models-pytorch', 'timm',
                 'pycocotools'], check=True)
 !nvidia-smi --query-gpu=name,memory.total --format=csv
 import psutil
