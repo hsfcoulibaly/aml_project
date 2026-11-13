@@ -168,6 +168,23 @@ Every w > 0 is worse. The U-Net instances do not recover filaments YOLO misses (
 add false positives and, where they outrank a YOLO duplicate, replace a better mask. YOLO stays the only
 proposer.
 
+### Charan's U-Net-2048 pipeline as the second source
+
+Charan's refined U-Net-2048 instances (`u2r_f*`, same 5 folds, his own refiners on his maps; alone pooled
+0.452, public 0.39) merged with our refined YOLO instances, same sweep:
+
+| U-Net weight w | min area | thr | Pooled PQ | Precision | Recall | Predictions / image |
+|---|---|---|---|---|---|---|
+| 0 (YOLO only) | 50 | 0.05 | 0.4578 | 0.707 | 0.640 | 6.7 |
+| 0.1 | 50 | 0.05 | 0.4589 | 0.694 | 0.654 | 6.9 |
+| **0.25** | 150 | 0.10 | **0.4598** | 0.698 | 0.653 | 6.9 |
+| 0.5 | 50 | 0.20 | 0.4566 | 0.702 | 0.638 | 6.7 |
+| 1.0 | 150 | 0.30 | 0.4512 | 0.677 | 0.647 | 7.0 |
+
+Per fold (YOLO only vs union, w 0.25): 0.455/0.456, 0.454/0.453, 0.445/0.450, 0.476/0.477, 0.460/0.463.
+A small gain (+0.002 pooled, 4 of 5 folds) from recall: his instances come from a different model and add
+some filaments our proposals miss. Test submission: `kaggle_out/union_c2r.csv`.
+
 ## In progress (Nov 10)
 
 * Refiner crop cache in memory (epochs become GPU-bound), then a 2D MeshNet refiner (13 dilated 3x3 layers,

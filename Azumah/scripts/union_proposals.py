@@ -36,7 +36,7 @@ from fseg.unet import pick_device, prob_to_instances  # noqa: E402
 from fseg.yolo_infer import write_submission  # noqa: E402
 from predict_refiner import refine_all  # noqa: E402
 
-WEIGHTS = [0.0, 0.25, 0.5, 0.75, 1.0]
+WEIGHTS = [0.0, 0.1, 0.25, 0.5, 0.75, 1.0]
 THRS = [0.05, 0.1, 0.15, 0.2, 0.3]
 AREAS = [50, 150, 300]
 
