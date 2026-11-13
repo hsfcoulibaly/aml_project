@@ -152,6 +152,22 @@ Kaggle's 12 h limit after the OOF step; pooled tuning was done on CPU from its O
 Pooled 0.4582 against 0.4579: no gain. Better U-Net maps do not reach the final PQ once the refiner is in;
 the refiner is the bottleneck, not its U-Net inputs. No test submission made for this variant.
 
+## Nov 13: U-Net proposals alongside YOLO (`scripts/union_proposals.py`, run on the dev node)
+
+U-Net map cut into instances (thresholds 0.3/0.5/0.7, about 11 per image), each refined by the same fold
+refiners, merged with the refined YOLO instances by greedy overlap resolution; U-Net scores scaled by w.
+
+| U-Net weight w | Pooled PQ | Precision | Recall | Predictions / image |
+|---|---|---|---|---|
+| 0 (YOLO only) | **0.458** | 0.707 | 0.640 | 6.7 |
+| 0.25 | 0.442 | 0.700 | 0.606 | 6.4 |
+| 0.5 | 0.416 | 0.613 | 0.617 | 7.4 |
+| 1.0 | 0.399 | 0.560 | 0.635 | 8.3 |
+
+Every w > 0 is worse. The U-Net instances do not recover filaments YOLO misses (recall does not rise); they
+add false positives and, where they outrank a YOLO duplicate, replace a better mask. YOLO stays the only
+proposer.
+
 ## In progress (Nov 10)
 
 * Refiner crop cache in memory (epochs become GPU-bound), then a 2D MeshNet refiner (13 dilated 3x3 layers,
