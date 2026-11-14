@@ -183,7 +183,7 @@ Charan's refined U-Net-2048 instances (`u2r_f*`, same 5 folds, his own refiners 
 
 Per fold (YOLO only vs union, w 0.25): 0.455/0.456, 0.454/0.453, 0.445/0.450, 0.476/0.477, 0.460/0.463.
 A small gain (+0.002 pooled, 4 of 5 folds) from recall: his instances come from a different model and add
-some filaments our proposals miss. Test submission: `kaggle_out/union_c2r.csv`.
+some filaments our proposals miss. Test submission: `kaggle_out/union_c2r.csv`, public LB 0.40 (r60x6 alone 0.39, Charan alone 0.39).
 
 ## In progress (Nov 10)
 
