@@ -69,7 +69,7 @@ def candidates(paths, refs, args):
     return rows
 
 
-def pick(rows):
+def pick(rows, n_fix=2):
     fixes = [x for x in rows if x["iou_p"] < 0.5 and x["iou_r"] > 0.7 and abs(x["q"] - x["iou_r"]) < 0.1
              and x["area"] > 2000]
     fixes = [x for x in fixes if spread(x["p"], x["r"], x["gt"]) < 2.0]
@@ -79,7 +79,7 @@ def pick(rows):
         if x["obs"] not in seen:
             chosen.append(x)
             seen.add(x["obs"])
-        if len(chosen) == 2:
+        if len(chosen) == n_fix:
             break
     fps = [x for x in rows if x["best_p"] < 0.05 and x["c"] >= 0.5 and x["q"] < 0.15 and x["area"] > 800
            and x["obs"] not in seen]
@@ -127,10 +127,11 @@ def main():
     ap.add_argument("--folds", type=int, nargs="+", default=[0, 1, 2, 3, 4])
     ap.add_argument("--min-conf", type=float, default=0.05)
     ap.add_argument("--out", default="fig_refiner_col.pdf")
+    ap.add_argument("--n-fix", type=int, default=2, help="rows of fixed proposals (plus one false positive)")
     args = ap.parse_args()
     paths = get_paths()
     refs = labels.load_references(paths)
-    chosen = pick(candidates(paths, refs, args))
+    chosen = pick(candidates(paths, refs, args), args.n_fix)
     plt.rcParams.update({"font.size": 6.5})
     fig, axs = plt.subplots(len(chosen), 3, figsize=(3.33, 1.2 * len(chosen) + 0.12))
     for row, x in zip(np.atleast_2d(axs), chosen):
