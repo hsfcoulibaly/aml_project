@@ -118,7 +118,7 @@ def panel(ax, g, m, outline=None, color=RED):
 
 
 def tag(ax, text):
-    ax.text(0.03, 0.03, text, transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="white",
+    ax.text(0.03, 0.97, text, transform=ax.transAxes, ha="left", va="top", fontsize=6.2, color="white",
             linespacing=1.15, bbox=dict(boxstyle="round,pad=0.25", fc="black", ec="none", alpha=0.6))
 
 
