@@ -197,13 +197,14 @@ at any threshold.
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.92\textwidth]{fig_distributions.pdf}
-\caption{Distributions over all 707 OOF images and all annotation sets. Left, middle: IoU and Dice of
+\caption{Distributions over all 707 OOF images and all annotation sets for YOLO alone, the refined
+U-Net-2048 and the final union. Left, middle: IoU and Dice of
 matched pairs. Right: best IoU of each ground-truth filament with any prediction (left of the dotted
 line: missed).}
 \label{fig:dist}
 \end{figure*}
 
-\paragraph{Mask quality (Figure~\ref{fig:dist}).} The refiner shifts the whole distribution of matched IoU upward: the median rises from 0.662 to 0.685 (Dice 0.796 to 0.813) and the lower quartile from 0.594 to 0.614. The merge mainly adds matches: 5,024 matched pairs for YOLO against 5,435 for the final system, and the share of ground-truth filaments that no prediction covers at IoU $>0.5$ falls from 38.7\% to 33.7\%. Most of the remaining misses have no overlapping prediction at all (the spike at 0), so they are detection failures rather than boundary errors.
+\paragraph{Mask quality (Figure~\ref{fig:dist}).} Refinement shifts the whole distribution of matched IoU upward for both proposal sources: the median rises from 0.662 for YOLO alone to 0.685 for both the refined U-Net-2048 and the final union (Dice 0.796 to 0.813). The two refined systems draw masks of the same quality and differ in how many filaments they find: 5,024 matched pairs for YOLO, 5,332 for the refined U-Net-2048 and 5,435 for the union, and the share of ground-truth filaments that no prediction covers at IoU $>0.5$ falls from 38.7\% to 35.0\% and 33.7\%. Most of the remaining misses have no overlapping prediction at all (the spike at 0), so they are detection failures rather than boundary errors.
 
 \begin{figure*}[t]
 \centering

@@ -76,6 +76,7 @@ def _score(name):
     return name, preds, res, m, best
 
 
+FIG_SERIES = [("YOLO11l-seg", "#9aa5b1"), ("U-Net-2048 + refiner", "#2a7fb8"), ("Union (final)", "#d1495b")]
 STAGES = ["YOLO11l-seg", "YOLO + refiner", "U-Net-2048 + refiner", "Union (final)"]
 
 
@@ -185,7 +186,7 @@ def main():
     # Figure 1: distributions of matched IoU / Dice and best IoU per GT filament
     fig, axs = plt.subplots(1, 3, figsize=(7.2, 2.1))
     bins = np.linspace(0, 1, 41)
-    for name, color in [("YOLO11l-seg", "#9aa5b1"), ("Union (final)", "#d1495b")]:
+    for name, color in FIG_SERIES:
         m, best, _ = dist[name]
         axs[0].hist(m, bins=bins, histtype="step", density=True, color=color, lw=1.4, label=name)
         axs[1].hist(2 * m / (1 + m), bins=bins, histtype="step", density=True, color=color, lw=1.4)
