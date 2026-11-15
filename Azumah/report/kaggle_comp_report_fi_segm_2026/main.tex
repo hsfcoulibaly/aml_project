@@ -138,14 +138,14 @@ Guide mode is on.}
     per held-out fold, plus once on all data; on the test set the fold models and the full model are used
     together.
 
-\begin{figure*}[t]
+\begin{figure}[t]
   \centering
-  \includegraphics[width=\textwidth]{pipeline_figure.pdf}
+  \includegraphics[width=\columnwidth]{pipeline_column.pdf}
   \caption{End-to-end pipeline: preprocessing, two proposal sources (YOLO11l-seg and a native-resolution
     U-Net), the instance-conditioned refiner guided by U-Net maps, and the score-ranked merge.}
   \Description{Block diagram of the pipeline from the input image through two proposal branches and refiners to the merged instance masks.}
   \label{fig:pipe}
-\end{figure*}
+\end{figure}
 
 \subsection{Pre-processing and targets}
     We fit the solar disk, divide out radial limb darkening and stack the raw, limb-flattened and

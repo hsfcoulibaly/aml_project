@@ -24,15 +24,15 @@ COLORS = {  # (fill, edge)
 }
 
 
-def box(ax, x, y, w, h, key, title, lines, title_size=7.2, size=6.1):
+def box(ax, x, y, w, h, key, title, lines, title_size=7.2, size=6.1, band=3.6):
     fill, edge = COLORS[key]
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=1.2",
                                 fc=fill, ec=edge, lw=1.0))
-    ax.add_patch(FancyBboxPatch((x, y + h - 3.6), w, 3.6, boxstyle="round,pad=0,rounding_size=1.2",
+    ax.add_patch(FancyBboxPatch((x, y + h - band), w, band, boxstyle="round,pad=0,rounding_size=1.2",
                                 fc=edge, ec=edge, lw=1.0))
-    ax.text(x + w / 2, y + h - 1.8, title, ha="center", va="center", color="white",
+    ax.text(x + w / 2, y + h - band / 2, title, ha="center", va="center", color="white",
             fontsize=title_size, fontweight="bold")
-    ax.text(x + 1.2, y + h - 4.6, "\n".join(lines), ha="left", va="top", color=INK, fontsize=size,
+    ax.text(x + 0.9, y + h - band - 0.9, "\n".join(lines), ha="left", va="top", color=INK, fontsize=size,
             linespacing=1.25)
 
 
@@ -43,11 +43,72 @@ def arrow(ax, p, q, label=None, label_xy=None, rad=0.0):
         ax.text(*label_xy, label, fontsize=5.6, color=INK, ha="center", va="center", style="italic")
 
 
+def column_figure(args):
+    """One-column version (3.33 in wide), flowing top to bottom."""
+    fig = plt.figure(figsize=(3.33, 3.0))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 50)
+    ax.set_ylim(0, 45)
+    ax.axis("off")
+    ts, fs = 6.0, 5.2
+
+    fill, edge = COLORS["in"]
+    ax.add_patch(FancyBboxPatch((0.3, 38.6), 49.4, 6.2, boxstyle="round,pad=0,rounding_size=1", fc=fill, ec=edge,
+                                lw=0.9))
+    img = cv2.imread(args.image, cv2.IMREAD_COLOR)[..., 1]
+    ys, xs = (img > 20).nonzero()
+    cy, cx, r = (ys.min() + ys.max()) // 2, (xs.min() + xs.max()) // 2, (ys.max() - ys.min()) // 2
+    img = cv2.resize(img[cy - r:cy + r, cx - r:cx + r], (200, 200), interpolation=cv2.INTER_AREA)
+    yy, xx = np.mgrid[:200, :200]
+    rgba = np.dstack([img, img, img, np.full_like(img, 255)])
+    rgba[(yy - 100) ** 2 + (xx - 100) ** 2 > 94 ** 2, 3] = 0
+    ax.imshow(rgba, extent=(1.5, 7.0, 39.1, 44.3), zorder=3)
+    ax.text(9, 43.1, "2048$^2$ H$\\alpha$ image", fontsize=ts, fontweight="bold", color=INK, va="center")
+    ax.text(9, 40.4, "disk fit, limb flattening, CLAHE $\\rightarrow$ 3 channels", fontsize=fs, color=INK,
+            va="center")
+
+    def b(x, y, w, h, key, title, lines):
+        box(ax, x, y, w, h, key, title, lines, title_size=ts, size=fs, band=3.0)
+
+    # the box helper uses a 3.6-unit title band; shrink it for this smaller canvas
+    b(0.3, 26.6, 15.8, 9.4, "s1", "1: YOLO11l-seg", ["1280 px, 4 flips", "6-model vote", "conf $\\geq$ 0.05"])
+    b(17.1, 26.6, 15.8, 9.4, "s2", "2: ConvNeXt U-Net", ["ASPP, 1024 px", "filament, center-", "line, boundary"])
+    b(33.9, 26.6, 15.8, 9.4, "s4", "4a: U-Net-2048", ["native res.,", "1024 tiles; comp.", "p > .3/.5/.7"])
+    b(0.3, 13.6, 32.6, 10.4, "s3", "3: refiner (ResNet-34 U-Net)",
+      ["256 px crop, 5 ch: image, CLAHE,", "proposal, filament + centerline maps", "out: mask + predicted IoU",
+       "6 refiners, D4 views"])
+    b(33.9, 13.6, 15.8, 10.4, "s3", "refiner", ["same recipe on", "U-Net-2048 maps", "6 refiners, D4"])
+    b(0.3, 4.1, 49.4, 7.0, "m", "4b: merge", [
+        "score = quality $\\times$ conf (U-Net-2048 $\\times$ 0.25); greedy overlap",
+        "resolution; keep score $\\geq$ 0.1, area $\\geq$ 150 px"])
+    fill, edge = COLORS["out"]
+    ax.add_patch(FancyBboxPatch((12, 0.2), 26, 3, boxstyle="round,pad=0,rounding_size=1", fc=fill, ec=edge,
+                                lw=0.9))
+    ax.text(25, 1.7, "disjoint instances (COCO RLE)", ha="center", va="center", fontsize=fs, fontweight="bold",
+            color=INK)
+
+    for x in (8.2, 25, 41.8):
+        arrow(ax, (x, 38.6), (x, 36))
+    arrow(ax, (8.2, 26.6), (8.2, 24))
+    arrow(ax, (25, 26.6), (25, 24))
+    ax.text(26.2, 25.3, "maps", fontsize=5.0, style="italic", color=INK, va="center")
+    arrow(ax, (41.8, 26.6), (41.8, 24))
+    arrow(ax, (16.6, 13.6), (16.6, 11.1))
+    arrow(ax, (41.8, 13.6), (41.8, 11.1))
+    arrow(ax, (25, 4.1), (25, 3.2))
+    fig.savefig(args.out, bbox_inches="tight", pad_inches=0.02)
+    fig.savefig(args.out.rsplit(".", 1)[0] + ".png", dpi=250, bbox_inches="tight", pad_inches=0.02)
+    print("wrote", args.out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--image", required=True)
     ap.add_argument("--out", default="pipeline_figure.pdf")
+    ap.add_argument("--column", action="store_true", help="one-column layout, top to bottom")
     args = ap.parse_args()
+    if args.column:
+        return column_figure(args)
 
     fig = plt.figure(figsize=(7.16, 2.35))
     ax = fig.add_axes([0, 0, 1, 1])
