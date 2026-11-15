@@ -110,6 +110,15 @@ Guide mode is on.}
     $\mathrm{PQ}=\sum_{\mathrm{TP}}\mathrm{IoU}/(|\mathrm{TP}|+\tfrac12|\mathrm{FP}|+\tfrac12|\mathrm{FN}|)
     =\mathrm{SQ}\times\mathrm{RQ}$, where a prediction matches a filament when their IoU exceeds 0.5.
 
+    Filament segmentation moved from thresholding and morphology~\cite{qu2005automatic} to deep networks:
+    U-Nets on full-disk H$\alpha$ images~\cite{zhu2019solar, zhu2025flat}, Mask R-CNN for filament
+    instances~\cite{ahmadzadeh2019toward}, and detection followed by segmentation, where YOLO boxes on
+    ChroTel and GONG images supervise a U-Net~\cite{diercke2024universal}; see~\cite{butka2026survey} for
+    a survey of deep learning on solar structures. Most of this work scores pixel masks (Dice, IoU), while
+    PQ also rewards separating and counting individual filaments. A two-stage solution to this challenge,
+    YOLO11m boxes followed by a UNet++ crop segmenter, reports validation PQ 0.415 and public PQ
+    0.37~\cite{ghosh2026twostage}.
+
     Annotators disagree strongly: one annotator scored against the others reaches only PQ 0.344. A
     single detector therefore faces two problems at once: drawing tight masks around thin, faint structures
     (segmentation quality) and deciding which candidates most annotators would draw (recognition quality).
@@ -140,14 +149,18 @@ Guide mode is on.}
 
 \subsection{Pre-processing and targets}
     We fit the solar disk, divide out radial limb darkening and stack the raw, limb-flattened and
-    CLAHE~\cite{zuiderveld1994clahe} images as three channels, with the sky set to zero. Instances from
+    CLAHE~\cite{zuiderveld1994clahe} images as three channels, with the sky set to zero.
+    Keeping the raw image next to the flattened one leaves the photometric context to the network, since
+    fixed normalization alone can remove useful signal for filament segmentation~\cite{stepanyuk2026datadriven}. Instances from
     different annotation sets of an image are clustered (IoU $>0.2$ or $>50\%$ cover); a consensus target
     keeps a filament drawn by at least half of the image's annotators.
 
 \subsection{Sampling and validation}
     All annotation sets of a physical image stay in one fold. We use 5 folds stratified by observing site
-    and filament-count quartile (141--142 images each). Every number in Section~\ref{sec:evaluation} is
-    out-of-fold (OOF): each image is predicted by models that never saw it, and post-processing thresholds
+    and filament-count quartile (141--142 images each). Grouping by image does not remove temporal
+    leakage~\cite{stepanyuk2026datadriven}: about a quarter of validation images have a training image
+    taken within 24 hours, so OOF scores are mildly optimistic. Every number in
+    Section~\ref{sec:evaluation} is out-of-fold (OOF): each image is predicted by models that never saw it, and post-processing thresholds
     are tuned once on the pooled 707 images. Tuning on a single fold was 0.004 PQ optimistic, and the public
     leaderboard (two decimals, about 90 images) cannot separate variants within 0.01, so pooled OOF PQ drives
     every design decision.
@@ -167,6 +180,8 @@ Guide mode is on.}
     filament map, plus BCE on the centerline and boundary maps.
 
 \subsection{Stage 3: instance-conditioned refiner}
+    The refiner follows the two-stage idea of Mask R-CNN~\cite{he2017maskrcnn} and of crop segmenters for
+    this task~\cite{ghosh2026twostage}, but is conditioned on the proposal itself and scores its own output.
     For each proposal we crop a square around its box with 1.5$\times$ context, resize it to 256 px and
     stack five channels: two image channels, the proposal mask, and the U-Net filament and centerline
     probabilities. A U-Net with a ResNet-34~\cite{he2016resnet} encoder (Segmentation Models
@@ -239,7 +254,7 @@ Guide mode is on.}
     (1.2\% to 2.4\%) because a U-Net component can cover part of a filament that a YOLO instance also
     covers. Every system exceeds the human agreement level because it is scored against all annotators and
     predicts the filaments most of them draw. On the public leaderboard the final system scores 0.40
-    (YOLO alone 0.35).
+    (YOLO alone 0.35), against 0.37 for the two-stage YOLO11m + UNet++ solution~\cite{ghosh2026twostage}.
 
 \begin{table}[t]
   \centering
