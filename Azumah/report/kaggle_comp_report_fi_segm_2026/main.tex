@@ -202,15 +202,15 @@ Guide mode is on.}
     higher-ranked ones. We keep instances with score $\ge 0.1$ and area $\ge 150$ px. Figure~\ref{fig:qual}
     shows example segmentations.
 
-\begin{figure*}[t]
+\begin{figure}[t]
   \centering
-  \includegraphics[width=0.85\textwidth]{fig_qualitative.pdf}
+  \includegraphics[width=\columnwidth]{fig_qualitative_col.pdf}
   \caption{Final model on OOF images at the 95th, 50th and 5th percentile of per-image PQ (among images
     with at least 4 filaments). Red: predictions; green outline: first annotation set (PQ averages over all
     sets).}
   \Description{Three cropped solar disk images with predicted filaments filled in red and annotated filaments outlined in green.}
   \label{fig:qual}
-\end{figure*}
+\end{figure}
 
 % ==================================== %
 %              EVALUATION              %
@@ -242,15 +242,15 @@ Guide mode is on.}
   \end{tabular}
 \end{table*}
 
-\begin{figure*}[t]
+\begin{figure}[t]
   \centering
-  \includegraphics[width=0.85\textwidth]{fig_distributions.pdf}
+  \includegraphics[width=\columnwidth]{fig_distributions_col.pdf}
   \caption{Distributions over all 707 OOF images and all annotation sets for YOLO alone, the refined
     U-Net-2048 and the final union. Left, middle: IoU and Dice of matched pairs. Right: best IoU of each
     ground-truth filament with any prediction (left of the dotted line: missed).}
   \Description{Three histograms comparing matched IoU, matched Dice and best IoU per ground-truth filament for three systems.}
   \label{fig:dist}
-\end{figure*}
+\end{figure}
 
 \subsection{Results}
     Table~\ref{tab:main} compares the stages. The refiner is the largest gain, +0.037 PQ over YOLO alone
