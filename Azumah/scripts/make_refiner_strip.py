@@ -117,6 +117,11 @@ def panel(ax, g, m, outline=None, color=RED):
         s.set_linewidth(0.4)
 
 
+def tag(ax, text):
+    ax.text(0.03, 0.03, text, transform=ax.transAxes, ha="left", va="bottom", fontsize=6.2, color="white",
+            linespacing=1.15, bbox=dict(boxstyle="round,pad=0.25", fc="black", ec="none", alpha=0.6))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", default="r60")
@@ -128,20 +133,21 @@ def main():
     refs = labels.load_references(paths)
     chosen = pick(candidates(paths, refs, args))
     plt.rcParams.update({"font.size": 6.5})
-    fig, axs = plt.subplots(len(chosen), 3, figsize=(3.33, 1.12 * len(chosen) + 0.15))
+    fig, axs = plt.subplots(len(chosen), 3, figsize=(3.33, 1.1 * len(chosen) + 0.12))
     for row, x in zip(np.atleast_2d(axs), chosen):
         g, (mp, mr, mg) = crop(paths, x)
         fp = x["best_p"] < 0.05
         panel(row[0], g, mp, None if fp else mg)
         panel(row[1], g, mr, None if fp else mg)
         panel(row[2], g, mg if not fp else 0 * mg, None, color=np.array(GREEN))
-        row[0].set_xlabel(f"conf {x['c']:.2f}" + ("" if fp else f", IoU {x['iou_p']:.2f}"), labelpad=1.5)
-        row[1].set_xlabel(f"pred. IoU {x['q']:.2f}" + ("" if fp else f", IoU {x['iou_r']:.2f}"), labelpad=1.5)
-        row[2].set_xlabel("none: dropped" if fp else "", labelpad=1.5)
+        tag(row[0], f"conf {x['c']:.2f}" if fp else f"IoU {x['iou_p']:.2f}\nconf {x['c']:.2f}")
+        tag(row[1], f"pred. IoU {x['q']:.2f}\ndropped" if fp else f"IoU {x['iou_r']:.2f}\npred. {x['q']:.2f}")
+        if fp:
+            tag(row[2], "not annotated")
         print(x["obs"], {k: round(x[k], 3) for k in ("c", "q", "iou_p", "iou_r")})
     for ax, t in zip(np.atleast_2d(axs)[0], ["YOLO proposal", "refined", "annotation"]):
         ax.set_title(t, fontsize=7.5, pad=2)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.04, wspace=0.04, hspace=0.32)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.94, bottom=0.04, wspace=0.04, hspace=0.06)
     fig.savefig(args.out, bbox_inches="tight", pad_inches=0.02)
     fig.savefig(args.out.rsplit(".", 1)[0] + ".png", dpi=250, bbox_inches="tight", pad_inches=0.02)
     print("wrote", args.out)
