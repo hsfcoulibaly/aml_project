@@ -1,0 +1,113 @@
+% =============================================================================
+% COPYRIGHT AND DISCLAIMER
+% =============================================================================
+% This file is provided as a convenience template for competition participants.
+% By using it, you accept full responsibility for compliance with all applicable
+% copyright, licensing, and usage rules of the Association for Computing
+% Machinery (ACM) and of any LaTeX packages you load (including, without
+% limitation, the "acmart" document class and related ACM materials).
+%
+% Consult ACM's official publication, template, and copyright policies before
+% using this setup for any purpose other than this competition. Do not assume
+% that this template may be reused, redistributed, or submitted elsewhere
+% without independently verifying ACM's current rules.
+%
+% Use of the "acmart" class, the "sigconf" option, or ACM-style formatting in
+% this template does NOT mean that this report, this competition, its organizers,
+% or any resulting PDF is sponsored, endorsed, affiliated with, or published by
+% ACM. ACM trademarks and branding remain the property of ACM.
+%
+% Template packages and document class live in preamble.tex.
+% Citations live in main.bib. Edit this file with your paper content.
+% =============================================================================
+
+\input{preamble}
+
+\begin{document}
+
+\title{Your Method Name Here}
+\subtitle{A Solution to the Solar Filament Segmentation Challenge 2026}
+
+\author{First Author}
+\affiliation{%
+  \institution{Your Institution}
+  \city{City}
+  \country{Country}
+}
+\email{first.author@example.com}
+
+\author{Second Author}
+\affiliation{%
+  \institution{Your Institution}
+  \city{City}
+  \country{Country}
+}
+\email{second.author@example.com}
+
+\begin{abstract}
+Replace this abstract with a short summary of your work. Keep it concise and
+self-contained. Mention the problem, your approach, and the main result.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+
+This template follows the ACM conference proceedings layout (\texttt{sigconf},
+two-column). Edit \texttt{main.tex} for your content, keep packages in
+\texttt{preamble.tex}, and add Bib\TeX{} entries in \texttt{main.bib}.
+
+As an example citation, Lamport's \LaTeX{} manual is a classic reference for
+document preparation~\cite{lamport94}.
+
+\section{Mathematical Notation}
+
+Advanced math is available via \texttt{amsmath}, \texttt{amssymb}, and
+\texttt{mathtools}. For example, the soft-max function is
+\begin{equation}
+  \operatorname{softmax}(z)_i
+  = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}.
+\end{equation}
+You can also write inline math such as $f(\mathbf{x}) = \mathbf{w}^\top\mathbf{x} + b$.
+
+\section{Figures}
+
+Figure~\ref{fig:example} shows a placeholder image (provided by the open-source
+\texttt{mwe} package on TeX~Live / Overleaf). Replace it with your own figure
+file and update the \texttt{\textbackslash includegraphics} path.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{example-image}
+  \caption{Example figure. Replace \texttt{example-image} with your own file
+    (e.g., \texttt{figures/plot.pdf}).}
+  \Description{Placeholder example image used to demonstrate figure inclusion.}
+  \label{fig:example}
+\end{figure}
+
+\section{Tables}
+
+Table~\ref{tab:example} demonstrates a simple \texttt{booktabs} table.
+
+\begin{table}[t]
+  \centering
+  \caption{Example results table.}
+  \label{tab:example}
+  \begin{tabular}{lcc}
+    \toprule
+    Method & Accuracy (\%) & F1 \\
+    \midrule
+    Baseline & 72.4 & 0.70 \\
+    Ours     & 81.2 & 0.79 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Conclusion}
+
+Summarize your findings and outline possible future work.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{main}
+
+\end{document}
