@@ -2,9 +2,8 @@
 % Body is template-agnostic: paste sections into the organizers' Overleaf template if required.
 \documentclass[10pt,twocolumn]{article}
 \usepackage[margin=0.7in]{geometry}
-\usepackage{graphicx,booktabs,amsmath,xcolor,tikz,caption}
+\usepackage{graphicx,booktabs,amsmath,xcolor,caption}
 \usepackage[hidelinks]{hyperref}
-\usetikzlibrary{positioning,arrows.meta,fit}
 \captionsetup{font=small,skip=3pt}
 \setlength{\textfloatsep}{8pt}
 \setlength{\floatsep}{6pt}
@@ -52,22 +51,7 @@ fields are never used; centerlines are derived by skeletonizing masks.
 \section{Method}
 \begin{figure*}[t]
 \centering
-\begin{tikzpicture}[node distance=4mm and 5mm, every node/.style={font=\scriptsize, align=center},
-  box/.style={draw, rounded corners=2pt, minimum height=8mm, inner sep=2pt, fill=#1!10}, box/.default=gray,
-  ar/.style={-{Latex[length=1.6mm]}, thick}]
-\node[box] (img) {2048$^2$ image\\disk fit, limb flattening,\\CLAHE (3 channels)};
-\node[box=blue, right=of img, yshift=7mm] (yolo) {Stage 1: YOLO11l-seg\\1280 px, 4-view flip TTA\\6-model vote (5 folds + full)};
-\node[box=teal, right=of img, yshift=-7mm] (unet) {Stage 2: ConvNeXt-T + ASPP U-Net\\1024 px, outputs filament,\\centerline, boundary};
-\node[box=orange, right=of yolo, xshift=4mm] (ref) {Stage 3: refiner\\ResNet-34 U-Net on 256 crops\\5 ch: image, CLAHE, proposal,\\U-Net filament, centerline\\mask + IoU (quality) head};
-\node[box=purple, right=of unet, xshift=4mm] (u2) {U-Net-2048 (native res.)\\components at $p>0.3,0.5,0.7$\\own refiner (same recipe)};
-\node[box=red, right=of ref, xshift=2mm, yshift=-7mm] (merge) {Stage 4: merge\\score $=$ quality$\times$conf\\(U-Net source $\times\,w{=}0.25$)\\greedy overlap resolution,\\keep score $\ge 0.1$};
-\node[right=of merge] (out) {instances\\(COCO RLE)};
-\draw[ar] (img) |- (yolo); \draw[ar] (img) |- (unet);
-\draw[ar] (yolo) -- node[above]{proposals} (ref);
-\draw[ar] (unet) -- node[right, pos=0.4]{maps} (ref);
-\draw[ar] (img.south) |- ++(0,-9mm) -| (u2.south);
-\draw[ar] (ref) -| (merge); \draw[ar] (u2) -| (merge); \draw[ar] (merge) -- (out);
-\end{tikzpicture}
+\includegraphics[width=\textwidth]{pipeline_figure.png}
 \caption{Pipeline. Every learned stage is trained 5 times (one per held-out fold) plus once on all data;
 the test set uses the fold models and the full model together.}
 \label{fig:pipe}
@@ -107,8 +91,8 @@ $w$, and resolved greedily: a lower-ranked instance is dropped when less than ha
 We keep instances with score $\ge 0.1$ and area $\ge 150$ px.
 
 \section{Results}
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{3pt}
+\begin{table*}[t]
+\centering\small\setlength{\tabcolsep}{6pt}
 \caption{Pooled 5-fold OOF results on all 707 training images (1:m one-to-many, m:1 many-to-one).}
 \label{tab:main}
 \begin{tabular}{lccccccc}
@@ -122,7 +106,7 @@ U-Net-2048 + refiner & 0.452 & 0.682 & 0.663 & 0.686 & 0.641 & 3.3\% & \textbf{2
 Union (final) & \textbf{0.460} & 0.682 & \textbf{0.674} & 0.698 & \textbf{0.653} & 2.4\% & 3.2\% \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 Table~\ref{tab:main} shows the stages. The refiner is the largest single gain (+0.037 PQ), mostly from
 recognition: its quality head discards false positives that YOLO's confidence cannot separate, so
@@ -136,7 +120,7 @@ and predicts the filaments most of them draw. Table~\ref{tab:fold}: the refiner 
 \centering\small\setlength{\tabcolsep}{4pt}
 \caption{OOF PQ per fold.}
 \label{tab:fold}
-\begin{tabular}{lcccc}
+\resizebox{\columnwidth}{!}{\begin{tabular}{lcccc}
 \toprule
 Fold ($n$) & YOLO & +refiner & U-Net-2048 & Union \\
 \midrule
@@ -148,14 +132,14 @@ Fold ($n$) & YOLO & +refiner & U-Net-2048 & Union \\
 \midrule
 Pooled (707) & 0.421 & 0.458 & 0.452 & \textbf{0.460} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \begin{table}[t]
 \centering\small\setlength{\tabcolsep}{3pt}
 \caption{Ablations. Top: fold 0 (142 images, settings tuned on fold 0). Bottom: pooled 707-image OOF.}
 \label{tab:abl}
-\begin{tabular}{lcc}
+\resizebox{\columnwidth}{!}{\begin{tabular}{lcc}
 \toprule
 Variant & OOF PQ & Public \\
 \midrule
@@ -174,7 +158,7 @@ U-Net-2048 + refiner alone & 0.452 & 0.39 \\
 YOLO + refiner + U-Net-2048, $w=1.0$ & 0.451 & \\
 YOLO + refiner + U-Net-2048, $w=0.25$ (final) & \textbf{0.460} & \textbf{0.40} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \paragraph{Ablations (Table~\ref{tab:abl}).} Endpoint-bridging fusion of broken filaments adds only 0.001
