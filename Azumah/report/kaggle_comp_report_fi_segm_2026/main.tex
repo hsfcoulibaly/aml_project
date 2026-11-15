@@ -140,7 +140,7 @@ Guide mode is on.}
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=\textwidth]{pipeline_figure.png}
+  \includegraphics[width=\textwidth, trim=12bp 160bp 12bp 160bp, clip]{pipeline_figure.pdf}
   \caption{End-to-end pipeline: preprocessing, two proposal sources (YOLO11l-seg and a native-resolution
     U-Net), the instance-conditioned refiner guided by U-Net maps, and the score-ranked merge.}
   \Description{Block diagram of the pipeline from the input image through two proposal branches and refiners to the merged instance masks.}
@@ -204,7 +204,7 @@ Guide mode is on.}
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=0.92\textwidth]{fig_qualitative.pdf}
+  \includegraphics[width=0.85\textwidth]{fig_qualitative.pdf}
   \caption{Final model on OOF images at the 95th, 50th and 5th percentile of per-image PQ (among images
     with at least 4 filaments). Red: predictions; green outline: first annotation set (PQ averages over all
     sets).}
@@ -241,6 +241,16 @@ Guide mode is on.}
     \bottomrule
   \end{tabular}
 \end{table*}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.85\textwidth]{fig_distributions.pdf}
+  \caption{Distributions over all 707 OOF images and all annotation sets for YOLO alone, the refined
+    U-Net-2048 and the final union. Left, middle: IoU and Dice of matched pairs. Right: best IoU of each
+    ground-truth filament with any prediction (left of the dotted line: missed).}
+  \Description{Three histograms comparing matched IoU, matched Dice and best IoU per ground-truth filament for three systems.}
+  \label{fig:dist}
+\end{figure*}
 
 \subsection{Results}
     Table~\ref{tab:main} compares the stages. The refiner is the largest gain, +0.037 PQ over YOLO alone
@@ -310,27 +320,10 @@ Guide mode is on.}
     the bottleneck. Proposals cut from our own 1024 px U-Net hurt (0.442): they overlap the YOLO proposals the
     refiner already sees and mostly add false positives. The native-resolution U-Net errs differently, and
     at a quarter of the YOLO weight its refined instances fill gaps without displacing better masks; at
-    equal weight they do (0.451). Figure~\ref{fig:thr} shows that a low weight needs a low score threshold,
-    and that a high weight cannot recover the loss at any threshold.
+    equal weight they do (0.451). A low weight needs a low score threshold (0.1); a high weight cannot recover the loss at any
+    threshold from 0.05 to 0.3.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{fig_threshold.pdf}
-  \caption{Pooled OOF PQ against the score threshold for each weight $w$ of the U-Net-2048 source (best
-    min area per point).}
-  \Description{Line plot of PQ against score threshold, one line per source weight.}
-  \label{fig:thr}
-\end{figure}
 
-\begin{figure*}[t]
-  \centering
-  \includegraphics[width=0.92\textwidth]{fig_distributions.pdf}
-  \caption{Distributions over all 707 OOF images and all annotation sets for YOLO alone, the refined
-    U-Net-2048 and the final union. Left, middle: IoU and Dice of matched pairs. Right: best IoU of each
-    ground-truth filament with any prediction (left of the dotted line: missed).}
-  \Description{Three histograms comparing matched IoU, matched Dice and best IoU per ground-truth filament for three systems.}
-  \label{fig:dist}
-\end{figure*}
 
 \subsection{Mask quality}
     Refinement shifts the whole distribution of matched IoU upward for both proposal sources
